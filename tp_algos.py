@@ -209,27 +209,22 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     landing_distance = 0.5
 
     # Persistent variable to avoid taking off again after landing
-    if not hasattr(cf2_control_fn, "mission_finished"):
-        cf2_control_fn.mission_finished = False
-
-    # If mission is finished, stay idle on the ground
-    if cf2_control_fn.mission_finished:
-        vx = 0.0
-        vy = 0.0
-        z_dist = 0.0
-        trigger_takeoff = False
-        trigger_land = False
-        led = (0, 255, 0)
+    if not hasattr(cf2_control_fn, "mission_state"):
+        cf2_control_fn.mission_state = {}
+        for i in range(nbCF2):
+            cf2_control_fn.mission_state[i+1] = 0
 
     # Takeoff phase
-    elif robotPose[2] < 0.05:
+    if cf2_control_fn.mission_state[robotNo] == 0:
         if clock > takeoff_delay:
             trigger_takeoff = True
             z_dist = z_hover
             led = (0, 0, 255)
+        if robotPose[2] > 0.8 * z_hover:
+            cf2_control_fn.mission_state[robotNo] = 1
 
     # Flight / consensus phase
-    else:
+    elif cf2_control_fn.mission_state[robotNo] == 1:
         z_dist = z_hover
         # There are exactly 2 drones, so:
         i = robotNo - 1 # Drone index
@@ -253,15 +248,28 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             led = (255, 120, 0)
         else:
             # Drones close enough to each other: land
-            vx = 0.0
-            vy = 0.0
-            z_dist = 0.0
-            trigger_land = True
-            led = (0, 255, 0)
+            cf2_control_fn.mission_state[robotNo] = 2
 
-            # Mark mission as finished when very close to the ground
-            if robotPose[2] < 0.15:
-                cf2_control_fn.mission_finished = True
+    # Landing
+    elif cf2_control_fn.mission_state[robotNo] == 2:
+        vx = 0.0
+        vy = 0.0
+        z_dist = 0.0
+        trigger_land = True
+        led = (0, 255, 0)
+
+        # Mark mission as finished when very close to the ground
+        if robotPose[2] < 0.15:
+            cf2_control_fn.mission_state[robotNo] = 3
+
+    # If mission is finished, stay idle on the ground
+    elif cf2_control_fn.mission_state[robotNo] == 3:
+        vx = 0.0
+        vy = 0.0
+        z_dist = 0.0
+        trigger_takeoff = False
+        trigger_land = False
+        led = (0, 255, 0)
 
     # -----------------------
 
