@@ -235,7 +235,7 @@ def update(frame):
     for i in range(nbTb3B):
         pose = tb3B_poses[:, i]
         default = (0.0, 0.0)
-        vx, vy = get_async_cmd('tb3B', i, default, tp_algos.tb3B_controller, 
+        vx, vy = get_async_cmd('tb3B', i, default, tp_algos_first_state_machine.tb3B_controller, 
                                i+1, pose.copy(), tb3B_snap, tb3W_snap, rmtt_snap, cf2_snap, rmep_snap, obs_poses, obs_sizes, [], clock_time)
         
         v, wz = unicycle_kinematics(vx, vy, pose[2], MAX_V_TB3B, MAX_W_TB3)
@@ -247,7 +247,7 @@ def update(frame):
     for i in range(nbTb3W):
         pose = tb3W_poses[:, i]
         default = (0.0, 0.0)
-        vx, vy = get_async_cmd('tb3W', i, default, tp_algos.tb3W_controller, 
+        vx, vy = get_async_cmd('tb3W', i, default, tp_algos_first_state_machine.tb3W_controller, 
                                i+1, pose.copy(), tb3B_snap, tb3W_snap, rmtt_snap, cf2_snap, rmep_snap, obs_poses, obs_sizes, [], clock_time)
         
         v, wz = unicycle_kinematics(vx, vy, pose[2], MAX_V_TB3W, MAX_W_TB3)
@@ -259,7 +259,7 @@ def update(frame):
     for i in range(nbRMTT):
         pose = rmtt_poses[:, i]
         default = (0.0, 0.0, 0.0, False, (0,0,0))
-        vx, vy, vz, trigger_land, led = get_async_cmd('rmtt', i, default, tp_algos.rmtt_controller, 
+        vx, vy, vz, trigger_land, led = get_async_cmd('rmtt', i, default, tp_algos_first_state_machine.rmtt_controller, 
                                                       i+1, pose.copy(), tb3B_snap, tb3W_snap, rmtt_snap, cf2_snap, rmep_snap, obs_poses, obs_sizes, clock_time)
         
         # State Machine Logic
@@ -291,7 +291,7 @@ def update(frame):
     for i in range(nbCF2):
         pose = cf2_poses[:, i]
         default = (0.0, 0.0, pose[2], False, False, (0,0,0))
-        vx, vy, z_dist, trigger_takeoff, trigger_land, led = get_async_cmd('cf2', i, default, tp_algos.cf2_controller, 
+        vx, vy, z_dist, trigger_takeoff, trigger_land, led = get_async_cmd('cf2', i, default, tp_algos_first_state_machine.cf2_controller, 
                                                                            i+1, pose.copy(), tb3B_snap, tb3W_snap, rmtt_snap, cf2_snap, rmep_snap, obs_poses, obs_sizes, clock_time)
         
         # State Machine Logic
@@ -329,7 +329,7 @@ def update(frame):
     for i in range(nbRMEP):
         pose = rmep_poses[:, i]
         default = (0.0, 0.0, 0.0)
-        vx, vy, wz = get_async_cmd('rmep', i, default, tp_algos.rmep_controller, 
+        vx, vy, wz = get_async_cmd('rmep', i, default, tp_algos_first_state_machine.rmep_controller, 
                                    i+1, pose.copy(), tb3B_snap, tb3W_snap, rmtt_snap, cf2_snap, rmep_snap, obs_poses, obs_sizes, clock_time)
         
         vx, vy = clamp_vel2d(vx, vy, MAX_V_RMEP)
