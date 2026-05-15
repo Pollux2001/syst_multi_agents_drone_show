@@ -29,6 +29,9 @@ SEPARATION_RADIUS = 0.35
 MAX_SPEED_BURGER = 0.10
 MAX_SPEED_WAFFLE = 0.12
 LIDAR_STOP_DISTANCE = 0.22
+STOP_BEFORE_COLLISION_RADIUS = 0.45
+STOP_TIME = 1.0
+CONSENSUS_STOP_UNTIL = 0.0
 
 
 def _safe_pose_array(poses):
@@ -55,6 +58,22 @@ def _lidar_too_close(lidar_scan):
         return False
     ranges = [r for r in lidar_scan if r is not None and math.isfinite(r) and r > 0.0]
     return bool(ranges) and min(ranges) < LIDAR_STOP_DISTANCE
+
+
+def _robots_too_close(all_positions):
+    for i in range(len(all_positions)):
+        for j in range(i + 1, len(all_positions)):
+            dist = np.linalg.norm(all_positions[i] - all_positions[j])
+            if dist < STOP_BEFORE_COLLISION_RADIUS:
+                return True
+    return False
+
+
+def _stop_timer_active(all_positions, clock):
+    global CONSENSUS_STOP_UNTIL
+    if _robots_too_close(all_positions):
+        CONSENSUS_STOP_UNTIL = max(CONSENSUS_STOP_UNTIL, clock + STOP_TIME)
+    return clock < CONSENSUS_STOP_UNTIL
 
 
 def _limit_speed(vx, vy, max_speed):
@@ -93,7 +112,7 @@ def _consensus_velocity(robotPose, all_positions):
 
 def tb3B_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock):
     all_positions = _turtlebot_positions(tb3B_poses, tb3W_poses)
-    if _lidar_too_close(lidar_scan):
+    if _lidar_too_close(lidar_scan) or _stop_timer_active(all_positions, clock):
         return 0.0, 0.0
 
     vx, vy = _consensus_velocity(robotPose, all_positions)
@@ -102,7 +121,7 @@ def tb3B_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 
 def tb3W_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock):
     all_positions = _turtlebot_positions(tb3B_poses, tb3W_poses)
-    if _lidar_too_close(lidar_scan):
+    if _lidar_too_close(lidar_scan) or _stop_timer_active(all_positions, clock):
         return 0.0, 0.0
 
     vx, vy = _consensus_velocity(robotPose, all_positions)

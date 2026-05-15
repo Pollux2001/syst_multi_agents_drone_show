@@ -2,8 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from concurrent.futures import ThreadPoolExecutor
-# Import the student's algorithms
-import tp_algos
+import one_drone_LED.one_drone as tp_algos
 
 # ==========================================
 # 1. SIMULATION INPUTS & CONFIGURATION
@@ -16,13 +15,10 @@ Tb3B_pose = [[0.0, 1.4, 0.0], [0.0, -1.4, 0.0], [-1.4, 0.0, 0.0]]  # x, y, theta
 nbTb3W = 0
 Tb3W_pose = [[1.0, 0.0, 0.0]]  # x, y, theta
 
-nbRMTT = 4
+nbRMTT = 1
 # Started at z=0.0 so we can see the 3s straight line takeoff
 RMTT_pose = [
-    [-1.5, -1.0, 0.0],
-    [-0.5, -1.0, 0.0],
-    [0.5, -1.0, 0.0],
-    [1.5, -1.0, 0.0],
+    [1.0, 0.0, 0.0],
 ]  # x, y, z 
 
 nbCF2 = 0
@@ -31,7 +27,7 @@ CF2_pose = [[-1.0, 0.0, 0.0]]  # x, y, z
 nbRMEP = 0
 RMEP_pose = [[-1.0, -1.0, 0.0]]  # x, y, theta
 
-nbObstacle = 2
+nbObstacle = 0
 obstacle_size = [[1.0, 0.5, 2.5], [0.5, 1.1, 2.5]]
 obstacle_pose = [[0.0, 0.0, 0.0], [3.0, -3.0, 0.0]]
 
