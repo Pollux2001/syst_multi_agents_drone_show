@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from concurrent.futures import ThreadPoolExecutor
-import one_drone_LED.one_drone as tp_algos
+import one_drone_LED.tp_algos as tp_algos
 
 # ==========================================
 # 1. SIMULATION INPUTS & CONFIGURATION

@@ -68,7 +68,7 @@
 '''
 
 import random
-
+import time
 import numpy as np
 import math, time
 
@@ -79,6 +79,7 @@ import math, time
 global TAKEOFF_DONE, Time2Takeoff
 TAKEOFF_DONE = False
 Time2Takeoff = 5 # time to wait before takeoff for the cf2 drone (in seconds)
+T_INIT = None
 
 # ===================================================================================
 # Control function for turtlebot3 Burger ground vehicle Unicycle model
@@ -152,6 +153,9 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     led = (0,0,0) # led color (r,g,b) in range [0,255]
     
     #  --- TO BE MODIFIED ---
+    global T_INIT
+    if T_INIT is None:
+        T_INIT = clock
     vx = 0.0
     vy = 0.0
     vz = 0.0
@@ -162,7 +166,7 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     center_y = 0.0
     center_z = 1.4
     radius = 1.0
-    t = max(0.0, clock - 3.0)
+    t = max(0.0, clock - T_INIT - 5.0)
     theta = 0.8 * t
     goal = [
         center_x + radius * math.cos(theta),
@@ -185,6 +189,7 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 
     return vx,vy,vz,trigger_land,led
 # ====================================    
+
 
 # ====================================
 # Control function for Crazyflie 2 drones
@@ -238,6 +243,8 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # -----------------------
 
     return vx, vy, z_dist, trigger_takeoff, trigger_land, led
+
+
 
 # ====================================
 # (Ask Supervisor if you need to use these robots)
