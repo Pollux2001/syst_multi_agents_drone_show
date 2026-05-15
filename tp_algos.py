@@ -202,7 +202,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     trigger_land = False # trigger to land the drone (True/False)
     led = (0,0,0) # led color (r,g,b) in range [0,255]
 
-     # Parameters
+    # Parameters
     z_hover = 1.0
     k_consensus = 0.6
     takeoff_delay = 1.0
@@ -231,50 +231,37 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # Flight / consensus phase
     else:
         z_dist = z_hover
+        # There are exactly 2 drones, so:
+        i = robotNo - 1 # Drone index
+        j = 1 - i # Other drone index
+        
+        other_x = cf2_poses[0, j]
+        other_y = cf2_poses[1, j]
+        other_z = cf2_poses[2, j]
 
-        if nbCF2 >= 2:
-            i = robotNo - 1
+        dx = other_x - robotPose[0]
+        dy = other_y - robotPose[1]
+        dz = other_z - robotPose[2]
 
-            # Other drone index: works for exactly 2 CF2
-            if i == 0:
-                j = 1
-            else:
-                j = 0
+        distance = math.sqrt(dx**2 + dy**2 + dz**2)
 
-            other_x = cf2_poses[0, j]
-            other_y = cf2_poses[1, j]
-            other_z = cf2_poses[2, j]
-
-            dx = other_x - robotPose[0]
-            dy = other_y - robotPose[1]
-            dz = other_z - robotPose[2]
-
-            distance = math.sqrt(dx**2 + dy**2 + dz**2)
-
-            if distance > landing_distance:
-                # Consensus command: each drone moves toward the other
-                vx = k_consensus * dx
-                vy = k_consensus * dy
-                z_dist = z_hover
-                led = (255, 120, 0)
-            else:
-                # Close enough: land
-                vx = 0.0
-                vy = 0.0
-                z_dist = 0.0
-                trigger_land = True
-                led = (0, 255, 0)
-
-                # Mark mission as finished when very close to ground later
-                if robotPose[2] < 0.15:
-                    cf2_control_fn.mission_finished = True
-
+        if distance > landing_distance:
+            # Consensus command
+            vx = k_consensus * dx
+            vy = k_consensus * dy
+            z_dist = z_hover
+            led = (255, 120, 0)
         else:
-            # Safety case: only one CF2 present
+            # Drones close enough to each other: land
             vx = 0.0
             vy = 0.0
-            z_dist = z_hover
-            led = (255, 0, 0)
+            z_dist = 0.0
+            trigger_land = True
+            led = (0, 255, 0)
+
+            # Mark mission as finished when very close to the ground
+            if robotPose[2] < 0.15:
+                cf2_control_fn.mission_finished = True
 
     # -----------------------
 
