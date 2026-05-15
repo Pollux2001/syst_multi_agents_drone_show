@@ -202,30 +202,79 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     trigger_land = False # trigger to land the drone (True/False)
     led = (0,0,0) # led color (r,g,b) in range [0,255]
 
-    if not TAKEOFF_DONE and robotPose[2] < 0.05: # if the drone is on the ground and takeoff is not done
-        if robotNo == 1:
-            time.sleep(Time2Takeoff) # wait for the specified time before takeoff
-        trigger_takeoff = True
-        TAKEOFF_DONE = True
-    elif not TAKEOFF_DONE and robotPose[2] > 0.1: # if the drone is taking off and takeoff is not done
-        TAKEOFF_DONE = True
-    elif TAKEOFF_DONE: 
-        goal = [-1.5,1,1]
-        ex = goal[0] - robotPose[0]
-        ey = goal[1] - robotPose[1]
-        ez = goal[2] - robotPose[2]
-        if abs(ex) > 0.1 or abs(ey) > 0.1 or abs(ez) > 0.1:
-            vx = 0.5 * ex
-            vy = 0.5 * ey
-            z_dist = 1.0
-            led = (random.randint(0,255), random.randint(0,255), random.randint(0,255)) # set random led color when the drone is flying
+     # Parameters
+    z_hover = 1.0
+    k_consensus = 0.6
+    takeoff_delay = 1.0
+    landing_distance = 0.5
+
+    # Persistent variable to avoid taking off again after landing
+    if not hasattr(cf2_control_fn, "mission_finished"):
+        cf2_control_fn.mission_finished = False
+
+    # If mission is finished, stay idle on the ground
+    if cf2_control_fn.mission_finished:
+        vx = 0.0
+        vy = 0.0
+        z_dist = 0.0
+        trigger_takeoff = False
+        trigger_land = False
+        led = (0, 255, 0)
+
+    # Takeoff phase
+    elif robotPose[2] < 0.05:
+        if clock > takeoff_delay:
+            trigger_takeoff = True
+            z_dist = z_hover
+            led = (0, 0, 255)
+
+    # Flight / consensus phase
+    else:
+        z_dist = z_hover
+
+        if nbCF2 >= 2:
+            i = robotNo - 1
+
+            # Other drone index: works for exactly 2 CF2
+            if i == 0:
+                j = 1
+            else:
+                j = 0
+
+            other_x = cf2_poses[0, j]
+            other_y = cf2_poses[1, j]
+            other_z = cf2_poses[2, j]
+
+            dx = other_x - robotPose[0]
+            dy = other_y - robotPose[1]
+            dz = other_z - robotPose[2]
+
+            distance = math.sqrt(dx**2 + dy**2 + dz**2)
+
+            if distance > landing_distance:
+                # Consensus command: each drone moves toward the other
+                vx = k_consensus * dx
+                vy = k_consensus * dy
+                z_dist = z_hover
+                led = (255, 120, 0)
+            else:
+                # Close enough: land
+                vx = 0.0
+                vy = 0.0
+                z_dist = 0.0
+                trigger_land = True
+                led = (0, 255, 0)
+
+                # Mark mission as finished when very close to ground later
+                if robotPose[2] < 0.15:
+                    cf2_control_fn.mission_finished = True
+
         else:
-            vx = 0
-            vy = 0
-            z_dist = 0
-            trigger_takeoff = False
-            trigger_land = True
-            TAKEOFF_DONE = False
+            # Safety case: only one CF2 present
+            vx = 0.0
+            vy = 0.0
+            z_dist = z_hover
+            led = (255, 0, 0)
 
     # -----------------------
 
