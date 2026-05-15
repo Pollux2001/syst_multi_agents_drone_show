@@ -67,50 +67,44 @@
 
 '''
 
-import random
 
+
+import random
 import numpy as np
 import math, time
 
+
 # ==============   "GLOBAL" VARIABLES KNOWN BY ALL THE FUNCTIONS ===================
-# all variables declared here will be known by functions below
-# use keyword "global" inside a function if the variable needs to be modified by the function
-
-
-
 global TAKEOFF_DONE, Time2Takeoff
 TAKEOFF_DONE = False
-Time2Takeoff = 5 # time to wait before takeoff for the cf2 drone (in seconds)
+Time2Takeoff = 0
+
 
 # ===================================================================================
 # Control function for turtlebot3 Burger ground vehicle Unicycle model
 # should ONLY return (vx,vy) for the robot command
-# max useable numbers of robots = 6 
+# max useable numbers of robots = 6
 # ====================================
 def tb3B_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock):
 # ====================================
 
-    nbTB3= len(tb3B_poses[0]) # number of total tb3 robots in the use
-    nbTB3W = len(tb3W_poses[0]) # number of total tb3W robots in the use
-    nbRMTT = len(rmtt_poses[0]) # number of total dji rmtt drones in the use
-    nbCF2 = len(cf2_poses[0]) # number of total cf2 drones in the use
-    nbRMEP = len(rmep_poses[0]) # number of total dji rmep in the use
-    nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
+    nbTB3= len(tb3B_poses[0])
+    nbTB3W = len(tb3W_poses[0])
+    nbRMTT = len(rmtt_poses[0])
+    nbCF2 = len(cf2_poses[0])
+    nbRMEP = len(rmep_poses[0])
+    nbOBSTACLE = len(obstacle_pose[0])
 
-    #  --- TO BE MODIFIED --- 
-    if robotNo == 1:    
-        goal = [2,-2]
-    if robotNo == 2:    
-        goal = [1,-2]
-    if robotNo == 3:
-        time.sleep(2)
-        goal = [0,-2]  
-    vx = 0.2 * (-robotPose[0] + goal[0])
-    vy = 0.2 * (-robotPose[1] + goal[1])
+    #  --- TO BE MODIFIED ---
+
+    # Ground robots are not used in this air-writing mission.
+    vx = 0.0
+    vy = 0.0
+
     # -----------------------
 
     return vx,vy
-# ====================================        
+# ====================================
 
 
 # ===================================================================================
@@ -121,62 +115,257 @@ def tb3B_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 def tb3W_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock):
 # ====================================
 
-    nbTB3= len(tb3B_poses[0]) # number of total tb3 robots in the use
-    nbTB3W = len(tb3W_poses[0]) # number of total tb3W robots in the use
-    nbRMTT = len(rmtt_poses[0]) # number of total dji rmtt drones in the use
-    nbCF2 = len(cf2_poses[0]) # number of total cf2 drones in the use
-    nbRMEP = len(rmep_poses[0]) # number of total dji rmep in the use
-    nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
+    nbTB3= len(tb3B_poses[0])
+    nbTB3W = len(tb3W_poses[0])
+    nbRMTT = len(rmtt_poses[0])
+    nbCF2 = len(cf2_poses[0])
+    nbRMEP = len(rmep_poses[0])
+    nbOBSTACLE = len(obstacle_pose[0])
 
-    #  --- TO BE MODIFIED --- 
-    goal = [-1,1]
-    vx = 0.2 * (-robotPose[0] + goal[0])
-    vy = 0.2 * (-robotPose[1] + goal[1])
+    #  --- TO BE MODIFIED ---
+
+    # Ground robots are not used in this air-writing mission.
+    vx = 0.0
+    vy = 0.0
+
     # -----------------------
 
     return vx,vy
-# ====================================   
+# ====================================
 
 
-# ====================================        
+# ====================================
 # Control function for dji rmtt drones
 # should ONLY return (vx,vy,vz) for the robot command
 # max useable numbers of drones = 4
 # ====================================
 def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
 # ====================================
-    nbTB3= len(tb3B_poses[0]) # number of total tb3 robots in the use
-    nbTB3W = len(tb3W_poses[0]) # number of total tb3W robots in the use
-    nbRMTT = len(rmtt_poses[0]) # number of total dji rmtt drones in the use
-    nbCF2 = len(cf2_poses[0]) # number of total cf2 drones in the use
-    nbRMEP = len(rmep_poses[0]) # number of total dji rmep in the use
-    nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
-    led = (0,0,0) # led color (r,g,b) in range [0,255]
-    
+    nbTB3= len(tb3B_poses[0])
+    nbTB3W = len(tb3W_poses[0])
+    nbRMTT = len(rmtt_poses[0])
+    nbCF2 = len(cf2_poses[0])
+    nbRMEP = len(rmep_poses[0])
+    nbOBSTACLE = len(obstacle_pose[0])
+    led = (0,0,0)
+
     #  --- TO BE MODIFIED ---
-    vx = 0.0
-    vy = 0.0
-    vz = 0.0
-    trigger_land = False # trigger to land the drone (True/False)
-    goal = [-2,1,1]
-    ex = goal[0] - robotPose[0]
-    ey = goal[1] - robotPose[1]
-    ez = goal[2] - robotPose[2]
-    if abs(ex) > 0.2 or abs(ey) > 0.2 or abs(ez) > 0.1:
-        vx = 0.5 * ex
-        vy = 0.5 * ey
-        vz = 0.5 * ez
-        led = (255,0,0)
-    else:
-        vx = 0
-        vy = 0
-        vz = 0
-        led = (0,255,0)
+
+    # ============================================================
+    # Six-drone air-writing mission:
+    # RMTT #1,#2,#3 -> virtual agents 0,1,2
+    # CF2  #1,#2,#3 -> virtual agents 3,4,5
+    #
+    # TD1 consensus idea:
+    #     q_i = p_i - d_i
+    #     all q_i should agree on the same formation center.
+    #
+    # TD2 formation idea:
+    #     p_i should track c_ref(t) + d_i(t).
+    # ============================================================
+
+    agent_id = robotNo - 1
+    trigger_land = False
+
+    def all_air_positions():
+        if rmtt_poses.shape[1] == 0 and cf2_poses.shape[1] == 0:
+            return np.zeros((3, 0))
+        elif rmtt_poses.shape[1] == 0:
+            return cf2_poses.copy()
+        elif cf2_poses.shape[1] == 0:
+            return rmtt_poses.copy()
+        else:
+            return np.hstack((rmtt_poses, cf2_poses))
+
+    def linear_interpolation(p0, p1, s):
+        s = max(0.0, min(1.0, s))
+        return (1.0 - s) * np.array(p0) + s * np.array(p1)
+
+    def formation_radius(t):
+        if t < 8.0:
+            return 0.45
+        elif t < 44.0:
+            return 0.42
+        elif t < 60.0:
+            return 0.55 + 0.10 * math.sin(2.5 * t)
+        else:
+            return 0.45
+
+    def desired_offset(idx, t, N):
+        R = formation_radius(t)
+
+        # Rotate the hexagonal formation during the star/firework stage.
+        omega = 0.0
+        if 44.0 <= t < 60.0:
+            omega = 1.2 * (t - 44.0)
+
+        angle = 2.0 * math.pi * idx / N + omega
+
+        return np.array([
+            R * math.cos(angle),
+            R * math.sin(angle),
+            0.0
+        ])
+
+    def heart_center(t):
+        # Heart drawn in the vertical X-Z plane.
+        T = 16.0
+        tau = 2.0 * math.pi * ((t - 8.0) / T)
+
+        x_raw = 16.0 * (math.sin(tau) ** 3)
+        z_raw = (
+            13.0 * math.cos(tau)
+            - 5.0 * math.cos(2.0 * tau)
+            - 2.0 * math.cos(3.0 * tau)
+            - math.cos(4.0 * tau)
+        )
+
+        x = 0.075 * x_raw
+        y = -0.45
+        z = 1.85 + 0.055 * z_raw
+
+        return np.array([x, y, z])
+
+    def infinity_center(t):
+        # Infinity symbol drawn in the vertical X-Z plane.
+        T = 16.0
+        tau = 2.0 * math.pi * ((t - 28.0) / T)
+
+        x = 1.15 * math.sin(tau)
+        y = 0.10
+        z = 2.00 + 0.55 * math.sin(2.0 * tau)
+
+        return np.array([x, y, z])
+
+    def star_center(t):
+        # Five-point star drawn in the vertical X-Z plane.
+        T = 16.0
+        local_t = (t - 44.0) % T
+
+        angles_deg = [90, 234, 18, 162, 306, 90]
+        points = []
+
+        for a_deg in angles_deg:
+            a = math.radians(a_deg)
+            points.append(np.array([
+                0.95 * math.cos(a),
+                0.65,
+                2.00 + 0.75 * math.sin(a)
+            ]))
+
+        seg_T = T / 5.0
+        k = int(local_t // seg_T)
+        k = min(k, 4)
+        s = (local_t - k * seg_T) / seg_T
+
+        return linear_interpolation(points[k], points[k + 1], s)
+
+    def reference_center(t):
+        # Center trajectory of the whole six-drone formation.
+        launch_center = np.array([0.0, -2.75, 1.10])
+        start_draw = np.array([0.0, -0.45, 2.10])
+
+        if t < 3.0:
+            return launch_center
+
+        elif t < 8.0:
+            s = (t - 3.0) / 5.0
+            return linear_interpolation(launch_center, start_draw, s)
+
+        elif t < 24.0:
+            return heart_center(t)
+
+        elif t < 44.0:
+            if t < 28.0:
+                s = (t - 24.0) / 4.0
+                return linear_interpolation(heart_center(24.0), infinity_center(28.0), s)
+            else:
+                return infinity_center(t)
+
+        elif t < 60.0:
+            return star_center(t)
+
+        elif t < 68.0:
+            s = (t - 60.0) / 8.0
+            return linear_interpolation(star_center(60.0), launch_center, s)
+
+        else:
+            return launch_center
+
+    # After the mission, ask RMTT to land.
+    if clock >= 68.0:
+        vx = 0.0
+        vy = 0.0
+        vz = 0.0
         trigger_land = True
+        led = (0, 255, 0)
+        return vx, vy, vz, trigger_land, led
+
+    all_pos = all_air_positions()
+    N = all_pos.shape[1]
+
+    if N == 0:
+        vx = 0.0
+        vy = 0.0
+        vz = 0.0
+        return vx, vy, vz, trigger_land, led
+
+    p_i = np.array([robotPose[0], robotPose[1], robotPose[2]])
+    d_i = desired_offset(agent_id, clock, N)
+    q_i = p_i - d_i
+
+    # Fully connected graph.
+    # This is the consensus part.
+    k_cons = 0.18
+    u_cons = np.zeros(3)
+
+    for j in range(N):
+        if j == agent_id:
+            continue
+
+        p_j = all_pos[:, j]
+        d_j = desired_offset(j, clock, N)
+        q_j = p_j - d_j
+
+        u_cons += -(q_i - q_j)
+
+    if N > 1:
+        u_cons = k_cons * u_cons / (N - 1)
+
+    # Formation tracking part.
+    k_track = 0.75
+    c_ref = reference_center(clock)
+    p_des = c_ref + d_i
+    u_track = k_track * (p_des - p_i)
+
+    u = u_cons + u_track
+
+    # Safety clipping before simulator speed limit.
+    max_u = 0.55
+    norm_u = np.linalg.norm(u)
+
+    if norm_u > max_u:
+        u = u * max_u / norm_u
+
+    vx = u[0]
+    vy = u[1]
+    vz = u[2]
+
+    # LED color is only used as semantic information.
+    if clock < 24.0:
+        led = (255, 0, 0)        # heart
+    elif clock < 44.0:
+        led = (0, 80, 255)       # infinity
+    elif clock < 60.0:
+        led = (255, 220, 0)      # star/firework
+    else:
+        led = (255, 255, 255)    # return
+
     # -----------------------
 
     return vx,vy,vz,trigger_land,led
-# ====================================    
+# ====================================
+
 
 # ====================================
 # Control function for Crazyflie 2 drones
@@ -185,108 +374,278 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 # ====================================
 def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
     global TAKEOFF_DONE, Time2Takeoff
-    nbTB3= len(tb3B_poses[0]) # number of total tb3 robots in the use
-    nbTB3W = len(tb3W_poses[0]) # number of total tb3W robots in the use
-    nbRMTT = len(rmtt_poses[0]) # number of total dji rmtt drones in the use
-    nbCF2 = len(cf2_poses[0]) # number of total cf2 drones in the use
-    nbRMEP = len(rmep_poses[0]) # number of total dji rmep in the use
-    nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
+    nbTB3= len(tb3B_poses[0])
+    nbTB3W = len(tb3W_poses[0])
+    nbRMTT = len(rmtt_poses[0])
+    nbCF2 = len(cf2_poses[0])
+    nbRMEP = len(rmep_poses[0])
+    nbOBSTACLE = len(obstacle_pose[0])
+    led = (0,0,0)
 
     #  --- TO BE MODIFIED ---
 
-    # Default values of the function's outputs:
-    vx = 0.0 # speed along the x axis' command
-    vy = 0.0 # speed along the y axis' command
-    z_dist = 1.0 # z coordinate's command (in m)
-    trigger_takeoff = False # trigger to takeoff the drone (True/False)
-    trigger_land = False # trigger to land the drone (True/False)
-    led = (0,0,0) # led color (r,g,b) in range [0,255]
+    # ============================================================
+    # Six-drone air-writing mission:
+    # RMTT #1,#2,#3 -> virtual agents 0,1,2
+    # CF2  #1,#2,#3 -> virtual agents 3,4,5
+    #
+    # The same formation-consensus law is used here.
+    # Difference:
+    #     RMTT returns vz.
+    #     CF2 returns z_dist, so z command is converted below.
+    # ============================================================
 
-    if not TAKEOFF_DONE and robotPose[2] < 0.05: # if the drone is on the ground and takeoff is not done
-        if robotNo == 1:
-            time.sleep(Time2Takeoff) # wait for the specified time before takeoff
-        trigger_takeoff = True
-        TAKEOFF_DONE = True
-    elif not TAKEOFF_DONE and robotPose[2] > 0.1: # if the drone is taking off and takeoff is not done
-        TAKEOFF_DONE = True
-    elif TAKEOFF_DONE: 
-        goal = [-1.5,1,1]
-        ex = goal[0] - robotPose[0]
-        ey = goal[1] - robotPose[1]
-        ez = goal[2] - robotPose[2]
-        if abs(ex) > 0.1 or abs(ey) > 0.1 or abs(ez) > 0.1:
-            vx = 0.5 * ex
-            vy = 0.5 * ey
-            z_dist = 1.0
-            led = (random.randint(0,255), random.randint(0,255), random.randint(0,255)) # set random led color when the drone is flying
+    vx = 0.0
+    vy = 0.0
+    z_dist = 1.0
+    trigger_takeoff = False
+    trigger_land = False
+
+    agent_id = nbRMTT + robotNo - 1
+
+    def all_air_positions():
+        if rmtt_poses.shape[1] == 0 and cf2_poses.shape[1] == 0:
+            return np.zeros((3, 0))
+        elif rmtt_poses.shape[1] == 0:
+            return cf2_poses.copy()
+        elif cf2_poses.shape[1] == 0:
+            return rmtt_poses.copy()
         else:
-            vx = 0
-            vy = 0
-            z_dist = 0
-            trigger_takeoff = False
-            trigger_land = True
-            TAKEOFF_DONE = False
+            return np.hstack((rmtt_poses, cf2_poses))
+
+    def linear_interpolation(p0, p1, s):
+        s = max(0.0, min(1.0, s))
+        return (1.0 - s) * np.array(p0) + s * np.array(p1)
+
+    def formation_radius(t):
+        if t < 8.0:
+            return 0.45
+        elif t < 44.0:
+            return 0.42
+        elif t < 60.0:
+            return 0.55 + 0.10 * math.sin(2.5 * t)
+        else:
+            return 0.45
+
+    def desired_offset(idx, t, N):
+        R = formation_radius(t)
+
+        omega = 0.0
+        if 44.0 <= t < 60.0:
+            omega = 1.2 * (t - 44.0)
+
+        angle = 2.0 * math.pi * idx / N + omega
+
+        return np.array([
+            R * math.cos(angle),
+            R * math.sin(angle),
+            0.0
+        ])
+
+    def heart_center(t):
+        T = 16.0
+        tau = 2.0 * math.pi * ((t - 8.0) / T)
+
+        x_raw = 16.0 * (math.sin(tau) ** 3)
+        z_raw = (
+            13.0 * math.cos(tau)
+            - 5.0 * math.cos(2.0 * tau)
+            - 2.0 * math.cos(3.0 * tau)
+            - math.cos(4.0 * tau)
+        )
+
+        x = 0.075 * x_raw
+        y = -0.45
+        z = 1.85 + 0.055 * z_raw
+
+        return np.array([x, y, z])
+
+    def infinity_center(t):
+        T = 16.0
+        tau = 2.0 * math.pi * ((t - 28.0) / T)
+
+        x = 1.15 * math.sin(tau)
+        y = 0.10
+        z = 2.00 + 0.55 * math.sin(2.0 * tau)
+
+        return np.array([x, y, z])
+
+    def star_center(t):
+        T = 16.0
+        local_t = (t - 44.0) % T
+
+        angles_deg = [90, 234, 18, 162, 306, 90]
+        points = []
+
+        for a_deg in angles_deg:
+            a = math.radians(a_deg)
+            points.append(np.array([
+                0.95 * math.cos(a),
+                0.65,
+                2.00 + 0.75 * math.sin(a)
+            ]))
+
+        seg_T = T / 5.0
+        k = int(local_t // seg_T)
+        k = min(k, 4)
+        s = (local_t - k * seg_T) / seg_T
+
+        return linear_interpolation(points[k], points[k + 1], s)
+
+    def reference_center(t):
+        launch_center = np.array([0.0, -2.75, 1.10])
+        start_draw = np.array([0.0, -0.45, 2.10])
+
+        if t < 3.0:
+            return launch_center
+
+        elif t < 8.0:
+            s = (t - 3.0) / 5.0
+            return linear_interpolation(launch_center, start_draw, s)
+
+        elif t < 24.0:
+            return heart_center(t)
+
+        elif t < 44.0:
+            if t < 28.0:
+                s = (t - 24.0) / 4.0
+                return linear_interpolation(heart_center(24.0), infinity_center(28.0), s)
+            else:
+                return infinity_center(t)
+
+        elif t < 60.0:
+            return star_center(t)
+
+        elif t < 68.0:
+            s = (t - 60.0) / 8.0
+            return linear_interpolation(star_center(60.0), launch_center, s)
+
+        else:
+            return launch_center
+
+    # Trigger takeoff at the beginning.
+    if robotPose[2] < 0.05 and clock < 8.0:
+        trigger_takeoff = True
+        led = (255, 255, 255)
+        return vx, vy, z_dist, trigger_takeoff, trigger_land, led
+
+    # After the mission, ask CF2 to land.
+    if clock >= 68.0:
+        vx = 0.0
+        vy = 0.0
+        z_dist = 0.0
+        trigger_land = True
+        led = (0, 255, 0)
+        return vx, vy, z_dist, trigger_takeoff, trigger_land, led
+
+    all_pos = all_air_positions()
+    N = all_pos.shape[1]
+
+    if N == 0:
+        return vx, vy, z_dist, trigger_takeoff, trigger_land, led
+
+    p_i = np.array([robotPose[0], robotPose[1], robotPose[2]])
+    d_i = desired_offset(agent_id, clock, N)
+    q_i = p_i - d_i
+
+    # Fully connected graph.
+    # This is the consensus part.
+    k_cons = 0.18
+    u_cons = np.zeros(3)
+
+    for j in range(N):
+        if j == agent_id:
+            continue
+
+        p_j = all_pos[:, j]
+        d_j = desired_offset(j, clock, N)
+        q_j = p_j - d_j
+
+        u_cons += -(q_i - q_j)
+
+    if N > 1:
+        u_cons = k_cons * u_cons / (N - 1)
+
+    # Formation tracking part.
+    k_track = 0.75
+    c_ref = reference_center(clock)
+    p_des = c_ref + d_i
+    u_track = k_track * (p_des - p_i)
+
+    u = u_cons + u_track
+
+    # Safety clipping before simulator speed limit.
+    max_u = 0.55
+    norm_u = np.linalg.norm(u)
+
+    if norm_u > max_u:
+        u = u * max_u / norm_u
+
+    vx = u[0]
+    vy = u[1]
+
+    # CF2 returns target altitude, not vertical velocity.
+    z_dist = robotPose[2] + u[2]
+    z_dist = max(0.7, min(3.0, z_dist))
+
+    if clock < 24.0:
+        led = (255, 0, 0)        # heart
+    elif clock < 44.0:
+        led = (0, 80, 255)       # infinity
+    elif clock < 60.0:
+        led = (255, 220, 0)      # star/firework
+    else:
+        led = (255, 255, 255)    # return
 
     # -----------------------
 
     return vx, vy, z_dist, trigger_takeoff, trigger_land, led
 
+
 # ====================================
-# (Ask Supervisor if you need to use these robots)
-# Control function for dji rmep robots (omnidirectional robots with gripper)
+# Control function for dji rmep robots omnidirectional robots with gripper
 # should ONLY return (vx,vy,wz) for the robot command
 # max useable numbers of robots = 2
 # ====================================
 def rmep_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
 # ====================================
-    nbTB3= len(tb3B_poses[0]) # number of total tb3 robots in the use
-    nbTB3W = len(tb3W_poses[0]) # number of total tb3W robots in the use
-    nbRMTT = len(rmtt_poses[0]) # number of total dji rmtt drones in the use
-    nbCF2 = len(cf2_poses[0]) # number of total cf2 drones in the use
-    nbRMEP = len(rmep_poses[0]) # number of total dji rmep in the use
-    nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
+    nbTB3= len(tb3B_poses[0])
+    nbTB3W = len(tb3W_poses[0])
+    nbRMTT = len(rmtt_poses[0])
+    nbCF2 = len(cf2_poses[0])
+    nbRMEP = len(rmep_poses[0])
+    nbOBSTACLE = len(obstacle_pose[0])
 
     #  --- TO BE MODIFIED ---
 
+    # RMEP robots are not used in this air-writing mission.
     vx = 0.0
     vy = 0.0
     wz = 0.0
-    goal = [1.5,1,1.57]
-    ex = goal[0] - robotPose[0]
-    ey = goal[1] - robotPose[1]
-    etheta = goal[2] - robotPose[2]
-    # try to avoid using the wz if possible, not reliable 
-    
-    if abs(ex) > 0.1 or abs(ey) > 0.1 or abs(etheta) > 0.1:
-        vx = 0.3 * ex
-        vy = 0.3 * ey 
-        wz = 0.1 * etheta
-    else:
-        vx = 0.0
-        vy = 0.0
-        wz = 0.0
+
     # -----------------------
 
     return vx, vy, wz
 # ====================================
 
 
-
-
-
 # ======== ! DO NOT MODIFY ! ============
 def tb3B_controller(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock):
     vx,vy = tb3B_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock)
     return vx,vy
+
 def tb3W_controller(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock):
     vx,vy = tb3W_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock)
     return vx,vy
+
 def rmtt_controller(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
     vx, vy, vz, trigger_land, led = rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock)
     return vx, vy, vz, trigger_land, led
+
 def cf2_controller(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
     vx, vy, z_dist, trigger_takeoff, trigger_land, led = cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock)
     return vx, vy, z_dist, trigger_takeoff, trigger_land, led
+
 def rmep_controller(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
     vx,vy,wz = rmep_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock)
     return vx,vy,wz
