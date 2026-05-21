@@ -2,8 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from concurrent.futures import ThreadPoolExecutor
-# Import the student's algorithms
-import tp_algos
+import one_drone_LED.tp_algos as tp_algos
 
 # ==========================================
 # 1. SIMULATION INPUTS & CONFIGURATION
@@ -16,17 +15,19 @@ Tb3B_pose = [[0.0, 1.4, 0.0], [0.0, -1.4, 0.0], [-1.4, 0.0, 0.0]]  # x, y, theta
 nbTb3W = 0
 Tb3W_pose = [[1.0, 0.0, 0.0]]  # x, y, theta
 
-nbRMTT = 0
+nbRMTT = 1
 # Started at z=0.0 so we can see the 3s straight line takeoff
-RMTT_pose = [[-1.0, 1.0, 0.0]]  # x, y, z 
+RMTT_pose = [
+    [1.0, 0.0, 0.0],
+]  # x, y, z 
 
-nbCF2 = 1
+nbCF2 = 0
 CF2_pose = [[-1.0, 0.0, 0.0]]  # x, y, z
 
 nbRMEP = 0
 RMEP_pose = [[-1.0, -1.0, 0.0]]  # x, y, theta
 
-nbObstacle = 2
+nbObstacle = 0
 obstacle_size = [[1.0, 0.5, 2.5], [0.5, 1.1, 2.5]]
 obstacle_pose = [[0.0, 0.0, 0.0], [3.0, -3.0, 0.0]]
 
@@ -123,6 +124,7 @@ tb3W_globs = [None] * nbTb3W
 rmtt_globs = [None] * nbRMTT
 cf2_globs  = [None] * nbCF2
 rmep_globs = [None] * nbRMEP
+rmtt_leds = ['orange'] * nbRMTT
 
 clock_time = 0.0
 
@@ -187,6 +189,12 @@ def check_obstacle_collision(cx, cy, cz, r):
         if (closest_x - cx)**2 + (closest_y - cy)**2 + (closest_z - cz)**2 < r**2:
             return True
     return False
+
+def normalize_led_color(led, fallback):
+    try:
+        return tuple(max(0, min(255, c)) / 255 for c in led)
+    except TypeError:
+        return fallback
 
 # Initialize dictionary to limit print frequency
 last_log_time = {}
@@ -261,6 +269,7 @@ def update(frame):
         default = (0.0, 0.0, 0.0, False, (0,0,0))
         vx, vy, vz, trigger_land, led = get_async_cmd('rmtt', i, default, tp_algos.rmtt_controller, 
                                                       i+1, pose.copy(), tb3B_snap, tb3W_snap, rmtt_snap, cf2_snap, rmep_snap, obs_poses, obs_sizes, clock_time)
+        rmtt_leds[i] = normalize_led_color(led, 'orange')
         
         # State Machine Logic
         if rmtt_states[i] == 1:   
@@ -346,7 +355,7 @@ def update(frame):
     for i in range(nbTb3W):
         all_robots.append(["TB3W_" + str(i+1), tb3W_poses[0,i], tb3W_poses[1,i], 0.15, RAD_TB3W*2, 'cyan', tb3W_globs, i, tb3W_plots, None])
     for i in range(nbRMTT):
-        all_robots.append(["RMTT_" + str(i+1), rmtt_poses[0,i], rmtt_poses[1,i], rmtt_poses[2,i], RAD_RMTT*2, 'orange', rmtt_globs, i, rmtt_plots, rmtt_states[i]])
+        all_robots.append(["RMTT_" + str(i+1), rmtt_poses[0,i], rmtt_poses[1,i], rmtt_poses[2,i], RAD_RMTT*2, rmtt_leds[i], rmtt_globs, i, rmtt_plots, rmtt_states[i]])
     for i in range(nbCF2):
         all_robots.append(["CF2_" + str(i+1), cf2_poses[0,i], cf2_poses[1,i], cf2_poses[2,i], RAD_CF2*2, 'green', cf2_globs, i, cf2_plots, cf2_states[i]])
     for i in range(nbRMEP):
@@ -394,6 +403,7 @@ def update(frame):
         plot_list[idx].set_3d_properties([cz])
         
         target_color = 'red' if collision_states[name] else default_color
+        plot_list[idx].set_color(target_color)
         
         if glob_list[idx]: glob_list[idx].remove()
         glob_list[idx] = draw_glob(ax, cx, cy, cz, glob_r, target_color)

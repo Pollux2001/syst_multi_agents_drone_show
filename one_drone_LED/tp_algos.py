@@ -68,7 +68,7 @@
 '''
 
 import random
-
+import time
 import numpy as np
 import math, time
 
@@ -79,6 +79,7 @@ import math, time
 global TAKEOFF_DONE, Time2Takeoff
 TAKEOFF_DONE = False
 Time2Takeoff = 5 # time to wait before takeoff for the cf2 drone (in seconds)
+T_INIT = None
 
 # ===================================================================================
 # Control function for turtlebot3 Burger ground vehicle Unicycle model
@@ -152,49 +153,33 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     led = (0,0,0) # led color (r,g,b) in range [0,255]
     
     #  --- TO BE MODIFIED ---
+    global T_INIT
+    if T_INIT is None:
+        T_INIT = clock
     vx = 0.0
     vy = 0.0
     vz = 0.0
     trigger_land = False # trigger to land the drone (True/False)
 
-    # Continuous drone-show figures for up to 4 RMTT drones.
-    # The high altitude lets the formation pass over the simulator obstacles.
+    # One-drone LED circle scenario.
     center_x = 0.0
-    center_y = 0.7
-    center_z = 2.8
-    phase = 2 * math.pi * (robotNo - 1) / max(nbRMTT, 1)
-    t = max(0.0, clock - 3.0)
-    cycle_t = t % 36.0
-    theta = 0.7 * t + phase
-
-    if cycle_t < 12.0:
-        radius = 1.1
-        goal = [
-            center_x + radius * math.cos(theta),
-            center_y + radius * math.sin(theta),
-            center_z + 0.12 * math.sin(2 * theta),
-        ]
-    elif cycle_t < 24.0:
-        goal = [
-            center_x + 1.25 * math.sin(theta),
-            center_y + 0.85 * math.sin(theta) * math.cos(theta),
-            center_z + 0.15 * math.cos(theta + phase),
-        ]
-    else:
-        slot_spacing = 0.7
-        slot_x = (robotNo - (nbRMTT + 1) / 2) * slot_spacing
-        goal = [
-            center_x + slot_x,
-            center_y + 0.85 * math.sin(theta),
-            center_z + 0.25 * math.sin(theta + math.pi / 2),
-        ]
+    center_y = 0.0
+    center_z = 1.4
+    radius = 1.0
+    t = max(0.0, clock - T_INIT - 5.0)
+    theta = 0.8 * t
+    goal = [
+        center_x + radius * math.cos(theta),
+        center_y + radius * math.sin(theta),
+        center_z,
+    ]
 
     ex = goal[0] - robotPose[0]
     ey = goal[1] - robotPose[1]
     ez = goal[2] - robotPose[2]
-    vx = 0.8 * ex
-    vy = 0.8 * ey
-    vz = 0.8 * ez
+    vx = 0.7 * ex
+    vy = 0.7 * ey
+    vz = 0.7 * ez
     led = (
         int(127 + 127 * math.sin(theta)),
         int(127 + 127 * math.sin(theta + 2 * math.pi / 3)),
@@ -204,6 +189,7 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 
     return vx,vy,vz,trigger_land,led
 # ====================================    
+
 
 # ====================================
 # Control function for Crazyflie 2 drones
@@ -257,6 +243,8 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # -----------------------
 
     return vx, vy, z_dist, trigger_takeoff, trigger_land, led
+
+
 
 # ====================================
 # (Ask Supervisor if you need to use these robots)
