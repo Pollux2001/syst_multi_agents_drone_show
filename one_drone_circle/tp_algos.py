@@ -68,7 +68,7 @@
 '''
 
 import random
-import time
+
 import numpy as np
 import math, time
 
@@ -156,38 +156,30 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     global T_INIT
     if T_INIT is None:
         T_INIT = clock
-    vx = 0.0
-    vy = 0.0
-    vz = 0.0
+    vx, vy, vz = 0, 0, 0
     trigger_land = False # trigger to land the drone (True/False)
 
-    # One-drone LED circle scenario.
-    center_x = 0.0
-    center_y = 0.0
-    center_z = 1.4
+    center_x, center_y, center_z = 0, 0, 1.4
     radius = 1.0
     t = max(0.0, clock - T_INIT - 5.0)
     theta = 0.8 * t
-    goal = [
-        center_x + radius * math.cos(theta),
-        center_y + radius * math.sin(theta),
-        center_z,
-    ]
+    goal = [center_x + radius * math.cos(theta), center_y + radius * math.sin(theta), center_z]
 
     ex = goal[0] - robotPose[0]
     ey = goal[1] - robotPose[1]
     ez = goal[2] - robotPose[2]
-    vx = 0.7 * ex
-    vy = 0.7 * ey
-    vz = 0.7 * ez
+
+    gain = 0.7
+    vx, vy, vz = gain * ex, gain * ey, gain * ez
+
     led = (
         int(127 + 127 * math.sin(theta)),
         int(127 + 127 * math.sin(theta + 2 * math.pi / 3)),
         int(127 + 127 * math.sin(theta + 4 * math.pi / 3)),
-    )
+    )  # (R, G, B) each between 0 and 255
     # -----------------------
 
-    return vx,vy,vz,trigger_land,led
+    return vx, vy, vz, trigger_land, led
 # ====================================    
 
 
