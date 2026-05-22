@@ -81,6 +81,17 @@ TAKEOFF_DONE = False
 Time2Takeoff = 5 # time to wait before takeoff for the cf2 drone (in seconds)
 T_INIT = None
 
+def velocity(error, p, i, d, current_time, max_speed):
+    if current_time > 0.0:
+        error_integral = error * current_time
+        error_derivative = error / current_time
+    else:
+        error_integral = 0.0
+        error_derivative = 0.0
+
+    speed = p * error + i * error_integral + d * error_derivative
+    return min(max(speed, -max_speed), max_speed)
+
 # ===================================================================================
 # Control function for turtlebot3 Burger ground vehicle Unicycle model
 # should ONLY return (vx,vy) for the robot command
@@ -162,15 +173,18 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     center_x, center_y, center_z = 0, 0, 1.4
     radius = 1.0
     t = max(0.0, clock - T_INIT - 5.0)
-    theta = 0.8 * t
+    theta = 0.4 * t
     goal = [center_x + radius * math.cos(theta), center_y + radius * math.sin(theta), center_z]
 
     ex = goal[0] - robotPose[0]
     ey = goal[1] - robotPose[1]
     ez = goal[2] - robotPose[2]
 
-    gain = 0.7
-    vx, vy, vz = gain * ex, gain * ey, gain * ez
+    p, i, d = 0.5, 0.005, 0.05
+    max_speed = 5
+    vx = velocity(ex, p, i, d, clock, max_speed)
+    vy = velocity(ey, p, i, d, clock, max_speed)
+    vz = velocity(ez, 0.7, i, d, clock, max_speed)
 
     led = (
         int(127 + 127 * math.sin(theta)),
