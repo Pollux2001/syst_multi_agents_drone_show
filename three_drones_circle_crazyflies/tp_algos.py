@@ -77,7 +77,7 @@ import math, time
 # use keyword "global" inside a function if the variable needs to be modified by the function
 
 global TAKEOFF_DONE, Time2Takeoff
-TAKEOFF_DONE = False
+TAKEOFF_DONE = set()
 Time2Takeoff = 5 # time to wait before takeoff for the cf2 drone (in seconds)
 T_INIT = None
 
@@ -173,7 +173,7 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     center_x, center_y, center_z = 0, 0, 1.4
     radius = 1.0
     t = max(0.0, clock - T_INIT - 5.0)
-    theta = 0.2 * t
+    theta = 0.4 * t
     phase = 2 * math.pi * (robotNo - 1) / 3
     drone_theta = theta + phase
     goal = [
@@ -186,8 +186,8 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     ey = goal[1] - robotPose[1]
     ez = goal[2] - robotPose[2]
 
-    p, i, d = 0.2, 0, 0.05
-    max_speed = 0.6
+    p, i, d = 0.5, 0.005, 0.05
+    max_speed = 5
     vx = velocity(ex, p, i, d, clock, max_speed)
     vy = velocity(ey, p, i, d, clock, max_speed)
     vz = velocity(ez, 0.7, i, d, clock, max_speed)
@@ -209,7 +209,7 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 # max useable numbers of drones = 3
 # ====================================
 def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
-    global TAKEOFF_DONE, Time2Takeoff
+    global TAKEOFF_DONE, Time2Takeoff, T_INIT
     nbTB3= len(tb3B_poses[0]) # number of total tb3 robots in the use
     nbTB3W = len(tb3W_poses[0]) # number of total tb3W robots in the use
     nbRMTT = len(rmtt_poses[0]) # number of total dji rmtt drones in the use
@@ -227,30 +227,43 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     trigger_land = False # trigger to land the drone (True/False)
     led = (0,0,0) # led color (r,g,b) in range [0,255]
 
-    if not TAKEOFF_DONE and robotPose[2] < 0.05: # if the drone is on the ground and takeoff is not done
-        if robotNo == 1:
-            time.sleep(Time2Takeoff) # wait for the specified time before takeoff
-        trigger_takeoff = True
-        TAKEOFF_DONE = True
-    elif not TAKEOFF_DONE and robotPose[2] > 0.1: # if the drone is taking off and takeoff is not done
-        TAKEOFF_DONE = True
-    elif TAKEOFF_DONE: 
-        goal = [-1.5,1,1]
+    if robotNo not in TAKEOFF_DONE and robotPose[2] < 0.05:
+        if clock >= Time2Takeoff:
+            trigger_takeoff = True
+            TAKEOFF_DONE.add(robotNo)
+    elif robotPose[2] > 0.1:
+        TAKEOFF_DONE.add(robotNo)
+
+    if robotNo in TAKEOFF_DONE and robotPose[2] > 0.1:
+        if T_INIT is None:
+            T_INIT = clock
+
+        center_x, center_y, center_z = 0, 0, 1.4
+        radius = 1.0
+        t = max(0.0, clock - T_INIT - 5.0)
+        theta = 0.4 * t
+        phase = 2 * math.pi * (robotNo - 1) / 3
+        drone_theta = theta + phase
+        goal = [
+            center_x + radius * math.cos(drone_theta),
+            center_y + radius * math.sin(drone_theta),
+            center_z,
+        ]
+
         ex = goal[0] - robotPose[0]
         ey = goal[1] - robotPose[1]
-        ez = goal[2] - robotPose[2]
-        if abs(ex) > 0.1 or abs(ey) > 0.1 or abs(ez) > 0.1:
-            vx = 0.5 * ex
-            vy = 0.5 * ey
-            z_dist = 1.0
-            led = (random.randint(0,255), random.randint(0,255), random.randint(0,255)) # set random led color when the drone is flying
-        else:
-            vx = 0
-            vy = 0
-            z_dist = 0
-            trigger_takeoff = False
-            trigger_land = True
-            TAKEOFF_DONE = False
+
+        p, i, d = 0.5, 0.005, 0.05
+        max_speed = 5
+        vx = velocity(ex, p, i, d, clock, max_speed)
+        vy = velocity(ey, p, i, d, clock, max_speed)
+        z_dist = goal[2]
+
+        led = (
+            int(127 + 127 * math.sin(drone_theta)),
+            int(127 + 127 * math.sin(drone_theta + 2 * math.pi / 3)),
+            int(127 + 127 * math.sin(drone_theta + 4 * math.pi / 3)),
+        )  # (R, G, B) each between 0 and 255
 
     # -----------------------
 

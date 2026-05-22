@@ -92,6 +92,12 @@ def velocity(error, p, i, d, current_time, max_speed):
     speed = p * error + i * error_integral + d * error_derivative
     return min(max(speed, -max_speed), max_speed)
 
+def clamp_vector(vector, max_norm):
+    norm = np.linalg.norm(vector)
+    if norm > max_norm:
+        return vector * max_norm / norm
+    return vector
+
 # ===================================================================================
 # Control function for turtlebot3 Burger ground vehicle Unicycle model
 # should ONLY return (vx,vy) for the robot command
@@ -170,27 +176,57 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     vx, vy, vz = 0, 0, 0
     trigger_land = False # trigger to land the drone (True/False)
 
-    center_x, center_y, center_z = 0, 0, 1.4
+    center = np.array([0.0, 0.0, 1.4])
     radius = 1.0
+    omega = 0.2
     t = max(0.0, clock - T_INIT - 5.0)
-    theta = 0.2 * t
-    phase = 2 * math.pi * (robotNo - 1) / 3
-    drone_theta = theta + phase
-    goal = [
-        center_x + radius * math.cos(drone_theta),
-        center_y + radius * math.sin(drone_theta),
-        center_z,
-    ]
+    theta = omega * t
 
-    ex = goal[0] - robotPose[0]
-    ey = goal[1] - robotPose[1]
-    ez = goal[2] - robotPose[2]
+    nb_drones = min(nbRMTT, 3)
+    drone_positions = np.array(rmtt_poses[:, :nb_drones]).T
+    formation_offsets = np.zeros((nb_drones, 3))
+    for idx in range(nb_drones):
+        angle = theta + 2 * math.pi * idx / 3
+        formation_offsets[idx] = [
+            radius * math.cos(angle),
+            radius * math.sin(angle),
+            0.0,
+        ]
 
-    p, i, d = 0.2, 0, 0.05
-    max_speed = 0.6
-    vx = velocity(ex, p, i, d, clock, max_speed)
-    vy = velocity(ey, p, i, d, clock, max_speed)
-    vz = velocity(ez, 0.7, i, d, clock, max_speed)
+    robot_idx = robotNo - 1
+    if robot_idx < nb_drones:
+        formation_error = np.zeros(3)
+        for idx in range(nb_drones):
+            if idx != robot_idx:
+                current_relative = drone_positions[robot_idx] - drone_positions[idx]
+                target_relative = formation_offsets[robot_idx] - formation_offsets[idx]
+                formation_error += current_relative - target_relative
+
+        centroid = np.mean(drone_positions - formation_offsets, axis=0)
+        centroid_error = centroid - center
+        angle = theta + 2 * math.pi * robot_idx / 3
+        offset_velocity = np.array([
+            -omega * radius * math.sin(angle),
+            omega * radius * math.cos(angle),
+            0.0,
+        ])
+
+        k_formation = 0.45
+        k_centroid = 0.35
+        command = offset_velocity - k_formation * formation_error - k_centroid * centroid_error
+        vx, vy, vz = clamp_vector(command, 0.6)
+
+        drone_theta = angle
+    else:
+        ex = center[0] - robotPose[0]
+        ey = center[1] - robotPose[1]
+        ez = center[2] - robotPose[2]
+        p, i, d = 0.2, 0, 0.05
+        max_speed = 0.6
+        vx = velocity(ex, p, i, d, clock, max_speed)
+        vy = velocity(ey, p, i, d, clock, max_speed)
+        vz = velocity(ez, 0.7, i, d, clock, max_speed)
+        drone_theta = theta
 
     led = (
         int(127 + 127 * math.sin(drone_theta)),
