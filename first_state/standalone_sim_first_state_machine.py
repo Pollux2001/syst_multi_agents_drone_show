@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from concurrent.futures import ThreadPoolExecutor
 # Import the student's algorithms
-import tp_algos_first_state_machine
+import étude_de_cas.github.first_state.tp_algos_first_state_machine as tp_algos_first_state_machine
 
 # ==========================================
 # 1. SIMULATION INPUTS & CONFIGURATION
