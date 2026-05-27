@@ -223,7 +223,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # Durations of the show phases
     rotation_duration = 12.0
     consensus_duration_max = 10.0
-    inverse_consensus_duration = 2.0
+    inverse_consensus_duration = 6.0
     formation_no_rotation_duration = 14.0
     formation_rotation_duration = 14.0
     return_duration_max = 12.0
@@ -249,6 +249,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # Tolerances
     return_tolerance = 0.12
     consensus_distance_threshold = 0.35
+    inverse_consensus_distance_threshold = 1.0
 
     # ============================================================
     # Persistent variables
@@ -365,6 +366,18 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
                 if dist > max_dist:
                     max_dist = dist
         return max_dist
+    
+    def min_distance_between_cf2():
+        min_dist = math.inf
+        for a in range(nbCF2):
+            for b in range(a + 1, nbCF2):
+                dx = cf2_poses[0, a] - cf2_poses[0, b]
+                dy = cf2_poses[1, a] - cf2_poses[1, b]
+                dz = cf2_poses[2, a] - cf2_poses[2, b]
+                dist = math.sqrt(dx**2 + dy**2 + dz**2)
+                if dist < min_dist:
+                    min_dist = dist
+        return min_dist
 
     def all_drones_above_takeoff_threshold():
         for a in range(nbCF2):
@@ -404,7 +417,9 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             change_phase(3)
 
     elif phase == 3:
-        if phase_time >= inverse_consensus_duration:
+        if min_distance_between_cf2() > inverse_consensus_distance_threshold:
+            change_phase(4)
+        elif phase_time >= inverse_consensus_duration:
             change_phase(4)
 
     elif phase == 4:
