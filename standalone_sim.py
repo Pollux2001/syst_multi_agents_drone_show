@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from concurrent.futures import ThreadPoolExecutor
-import three_drones_circle.tp_algos as tp_algos  # edit this line to select your scenario
+import first_state_show.tp_algos as tp_algos  # edit this line to select your scenario
 
 # ==========================================
 # 1. SIMULATION INPUTS & CONFIGURATION
@@ -15,15 +15,21 @@ Tb3B_pose = [[0.0, 1.4, 0.0], [0.0, -1.4, 0.0], [-1.4, 0.0, 0.0]]  # x, y, theta
 nbTb3W = 0
 Tb3W_pose = [[1.0, 0.0, 0.0]]  # x, y, theta
 
-nbRMTT = 1   # dji rmtt drones
+nbRMTT = 0   # dji rmtt drones
 # Started at z=0.0 so we can see the 3s straight line takeoff.
 # The three initial x/y positions match the 120-degree circle formation.
 RMTT_pose = [
-    [0.0, 0.0, 0.0],
+    [ 1.0,    0.0, 0.0],
+    [-0.5,  0.866, 0.0],
+    [-0.5, -0.866, 0.0]
 ]  # x, y, z 
 
-nbCF2 = 0
-CF2_pose = [[-1.0, 0.0, 0.0]]  # x, y, z
+nbCF2 = 3
+CF2_pose = [
+    [ 1.0,    0.0, 0.0],
+    [-0.5,  0.866, 0.0],
+    [-0.5, -0.866, 0.0]
+]  # x, y, z 
 
 nbRMEP = 0
 RMEP_pose = [[-1.0, -1.0, 0.0]]  # x, y, theta
