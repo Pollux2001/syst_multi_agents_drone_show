@@ -1,2 +1,3 @@
-# syst_multi_agents_drone_show
-Projet lié à l'électif Système Multi Agents, à CentraleSupélec. Le projet consiste en un spectacle de drones lumineux, inspiré de ce qui se fait pour parfois remplacer des feux d'artifice.
+Due to the limitation of using drones in the real time test(just 3 drones),we want to use more drones to simulate a more complex firework.
+In thie situation,we use 6 drones to simulate this process which includes heart,infinite,wave and different shapes.
+We can choose different final show in this code(wave,flower,triangle and vortex) to better simulate the virtual firework by using 6 drones.
