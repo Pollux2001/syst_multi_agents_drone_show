@@ -10,13 +10,10 @@ import tp_algos
 dt = 0.05
 
 nbTb3B = 0
-Tb3B_pose = []
-
 nbTb3W = 0
-Tb3W_pose = [[0.0, 0.0, 0.0]]
-
 nbRMTT = 0
-RMTT_pose = [[0.0, 0.0, 0.0]]
+nbRMEP = 0
+nbObstacle = 0
 
 nbCF2 = 3
 # Equilateral triangle on the ground
@@ -25,13 +22,6 @@ CF2_pose = [
     [ 0.6, -0.35, 0.0],
     [ 0.0,  0.69, 0.0],
 ]
-
-nbRMEP = 0
-RMEP_pose = [[0.0, 0.0, 0.0]]
-
-nbObstacle = 0
-obstacle_pose = []
-obstacle_size = []
 
 # ==========================================
 # 2. HARDWARE SPECS
@@ -51,14 +41,13 @@ tb3W_poses = np.zeros((3, 0))
 rmtt_poses = np.zeros((3, 0))
 cf2_poses  = np.array(CF2_pose).T
 rmep_poses = np.zeros((3, 0))
-
-obs_poses = np.zeros((3, 0))
-obs_sizes = np.zeros((3, 0))
+obs_poses  = np.zeros((3, 0))
+obs_sizes  = np.zeros((3, 0))
 
 cf2_states = [0] * nbCF2
 cf2_timers = [0.0] * nbCF2
 
-# Per-drone colors (red, green, blue)
+rmtt_colors = []
 cf2_colors = [
     (1.0, 0.24, 0.24),
     (0.24, 1.0, 0.24),
@@ -70,7 +59,7 @@ cf2_colors = [
 # ==========================================
 fig = plt.figure(figsize=(10, 8))
 ax  = fig.add_subplot(111, projection='3d')
-ax.set_title("Three Drones — Triangle → Line (P controller)")
+ax.set_title("Three Drones — Crazyflie 2 — Triangle → Line (PID)")
 ax.set_xlabel('X (m)')
 ax.set_ylabel('Y (m)')
 ax.set_zlabel('Z (m)')
@@ -85,7 +74,7 @@ ax.set_ylim([Y_MIN, Y_MAX])
 ax.set_zlim([Z_MIN, Z_MAX])
 ax.set_box_aspect((5, 5, 3))
 
-drone_labels = ['CF2 #1 (red)', 'CF2 #2 (green)', 'CF2 #3 (blue)']
+drone_labels  = ['CF2 #1 (red)', 'CF2 #2 (green)', 'CF2 #3 (blue)']
 marker_colors = ['red', 'green', 'blue']
 cf2_plots = [
     ax.plot([], [], [], marker='*', color=marker_colors[i], linestyle='',
@@ -95,7 +84,6 @@ cf2_plots = [
 ax.legend(loc='upper right', framealpha=0.9, title="Robots")
 
 cf2_globs = [None] * nbCF2
-
 clock_time = 0.0
 
 # ==========================================
@@ -187,20 +175,16 @@ def update(frame):
     for i in range(nbCF2):
         cx, cy, cz = cf2_poses[0, i], cf2_poses[1, i], cf2_poses[2, i]
         r = RAD_CF2 * 2
-
         collision = check_boundary_collision(cx, cy, cz, r, cf2_states[i])
         if collision:
             log_key = f"CF2_{i+1}_boundary"
             if clock_time - last_log_time.get(log_key, -1.0) >= 1.0:
                 print(f"[WARNING] CF2_{i+1} is colliding with the environment boundary!")
                 last_log_time[log_key] = clock_time
-
         cf2_plots[i].set_data([cx], [cy])
         cf2_plots[i].set_3d_properties([cz])
-
         color = 'red' if collision else cf2_colors[i]
-        if cf2_globs[i]:
-            cf2_globs[i].remove()
+        if cf2_globs[i]: cf2_globs[i].remove()
         cf2_globs[i] = draw_glob(ax, cx, cy, cz, r, color)
 
     clock_time += dt

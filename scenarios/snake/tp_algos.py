@@ -161,9 +161,14 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     vy = kp * (ty - robotPose[1])
     vz = 0.5 * (tz - robotPose[2])
 
-    # Head (g_idx=0) glows warm yellow; body fades through the rainbow toward tail
-    hue = (clock * 0.04 + g_idx / N_TOTAL) % 1.0
-    led = hsv_to_rgb255(hue)
+    if clock >= 60.0:
+        trigger_land = True
+        vx = vy = vz = 0.0
+        led = (20, 20, 20)
+    else:
+        # Head (g_idx=0) glows warm yellow; body fades through the rainbow toward tail
+        hue = (clock * 0.04 + g_idx / N_TOTAL) % 1.0
+        led = hsv_to_rgb255(hue)
 
     # -----------------------
     return vx, vy, vz, trigger_land, led
@@ -198,23 +203,29 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         cf2_takeoff_done[idx] = True
 
     elif cf2_takeoff_done[idx]:
-        # --- Same consensus + snake logic as RMTT ---
-        omega    = np.mean(consensus_omega)
-        s_i      = omega * clock - phi_i
-        tx, ty, tz = snake_path(s_i)
+        if clock >= 60.0:
+            trigger_land = True
+            vx = vy = 0.0
+            z_dist = Z_CF2
+            led = (20, 20, 20)
+        else:
+            # --- Same consensus + snake logic as RMTT ---
+            omega    = np.mean(consensus_omega)
+            s_i      = omega * clock - phi_i
+            tx, ty, tz = snake_path(s_i)
 
-        ax, ay = get_drone_xy(g_idx - 1, rmtt_poses, cf2_poses)
-        gap    = np.hypot(robotPose[0] - ax, robotPose[1] - ay)
-        omega_vote = OMEGA_BASE + 0.08 * (gap - DESIRED_GAP)
-        consensus_omega[g_idx] = np.clip(omega_vote, 0.05, 0.6)
+            ax, ay = get_drone_xy(g_idx - 1, rmtt_poses, cf2_poses)
+            gap    = np.hypot(robotPose[0] - ax, robotPose[1] - ay)
+            omega_vote = OMEGA_BASE + 0.08 * (gap - DESIRED_GAP)
+            consensus_omega[g_idx] = np.clip(omega_vote, 0.05, 0.6)
 
-        kp  = 0.8
-        vx  = kp * (tx - robotPose[0])
-        vy  = kp * (ty - robotPose[1])
-        z_dist = tz
+            kp  = 0.8
+            vx  = kp * (tx - robotPose[0])
+            vy  = kp * (ty - robotPose[1])
+            z_dist = tz
 
-        hue = (clock * 0.04 + g_idx / N_TOTAL) % 1.0
-        led = hsv_to_rgb255(hue)
+            hue = (clock * 0.04 + g_idx / N_TOTAL) % 1.0
+            led = hsv_to_rgb255(hue)
 
     # -----------------------
     return vx, vy, z_dist, trigger_takeoff, trigger_land, led

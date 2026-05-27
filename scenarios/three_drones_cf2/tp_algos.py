@@ -3,12 +3,12 @@
     CentraleSupelec TP 2A/3A
     (all variables in SI unit)
 
-    Scenario: three_drones
+    Scenario: three_drones_cf2
     Phase 0: take off from equilateral triangle → straight line on X axis at z=1m
     Phase 1: straight line on Z axis (vertical, x=0 y=0)
     Phase 2: straight line on Y axis at z=1m
     Phase 3: land and shut down
-    Algorithm: proportional controller (P only) toward fixed targets.
+    Algorithm: PID controller toward fixed targets.
 '''
 
 import numpy as np
@@ -51,6 +51,18 @@ z_line_reached = [False] * N_CF2
 y_line_reached = [False] * N_CF2
 phase = 0  # 0=X line, 1=Z line, 2=Y line, 3=land
 
+# PID gains (XY plane)
+KP   = 0.8
+KI   = 0.05
+KD   = 0.3
+DT   = 0.05   # must match the simulation timestep
+I_MAX = 1.5   # anti-windup clamp on the integral term
+
+# Per-drone PID state — reset when the target changes phase
+pid_integral   = [[0.0, 0.0] for _ in range(N_CF2)]  # [ix, iy]
+pid_prev_error = [[0.0, 0.0] for _ in range(N_CF2)]  # [ex_prev, ey_prev]
+pid_prev_phase = [-1] * N_CF2                         # detect phase change → reset
+
 # ===================================================================================
 def tb3B_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, lidar_scan, clock):
     return 0.0, 0.0
@@ -67,6 +79,7 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
     global cf2_takeoff_done, Time2Takeoff
     global phase, x_line_reached, z_line_reached, y_line_reached
+    global pid_integral, pid_prev_error, pid_prev_phase
 
     idx = robotNo - 1
 
@@ -121,9 +134,26 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             trigger_land = True
             led = (20, 20, 20)
 
-        kp = 0.6
-        vx    = kp * (tx - robotPose[0])
-        vy    = kp * (ty - robotPose[1])
+        # Reset integrator on phase change
+        if phase != pid_prev_phase[idx]:
+            pid_integral[idx]   = [0.0, 0.0]
+            pid_prev_error[idx] = [tx - robotPose[0], ty - robotPose[1]]
+            pid_prev_phase[idx] = phase
+
+        ex = tx - robotPose[0]
+        ey = ty - robotPose[1]
+
+        # Integral with anti-windup
+        pid_integral[idx][0] = np.clip(pid_integral[idx][0] + ex * DT, -I_MAX, I_MAX)
+        pid_integral[idx][1] = np.clip(pid_integral[idx][1] + ey * DT, -I_MAX, I_MAX)
+
+        # Derivative
+        dex = (ex - pid_prev_error[idx][0]) / DT
+        dey = (ey - pid_prev_error[idx][1]) / DT
+        pid_prev_error[idx] = [ex, ey]
+
+        vx     = KP * ex + KI * pid_integral[idx][0] + KD * dex
+        vy     = KP * ey + KI * pid_integral[idx][1] + KD * dey
         z_dist = tz
 
     return vx, vy, z_dist, trigger_takeoff, trigger_land, led
