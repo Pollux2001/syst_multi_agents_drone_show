@@ -68,7 +68,6 @@
 '''
 
 import random
-
 import numpy as np
 import math, time
 
@@ -233,23 +232,23 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     barycenter_omega = 2.0 * math.pi / formation_no_rotation_duration
 
     # PD gains
-    kp_xy = 0.85
-    kd_xy = 0.18
+    kp_xy = 0.65
+    kd_xy = 0.16
 
-    kp_z = 0.9
-    kd_z = 0.15
+    kp_z = 0.8
+    kd_z = 0.2
 
     # Low-pass filter time constant for the derivative term
     derivative_filter_tau = 0.35
 
     # Saturations
-    max_vxy_cmd = 0.45
-    max_vz_cmd = 0.35
+    max_vxy_cmd = 0.6
+    max_vz_cmd = 0.8
 
     # Tolerances
     return_tolerance = 0.12
-    consensus_distance_threshold = 0.35
-    inverse_consensus_distance_threshold = 1.0
+    consensus_distance_threshold = 0.85
+    inverse_consensus_distance_threshold = 1.35
 
     # ============================================================
     # Persistent variables
