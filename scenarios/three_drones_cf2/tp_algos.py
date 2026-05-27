@@ -52,11 +52,12 @@ y_line_reached = [False] * N_CF2
 phase = 0  # 0=X line, 1=Z line, 2=Y line, 3=land
 
 # PID gains (XY plane)
-KP   = 0.8
-KI   = 0.05
-KD   = 0.3
-DT   = 0.05   # must match the simulation timestep
-I_MAX = 1.5   # anti-windup clamp on the integral term
+KP    = 0.8
+KI    = 0.05
+KD    = 0.3
+DT    = 0.05    # must match the simulation timestep
+V_MAX = 0.5     # per-axis velocity saturation limit in the controller (m/s)
+I_MAX = V_MAX / KI  # integral limit derived from saturation: KI*I_MAX = V_MAX
 
 # Per-drone PID state — reset when the target changes phase
 pid_integral   = [[0.0, 0.0] for _ in range(N_CF2)]  # [ix, iy]
@@ -143,17 +144,25 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         ex = tx - robotPose[0]
         ey = ty - robotPose[1]
 
-        # Integral with anti-windup
-        pid_integral[idx][0] = np.clip(pid_integral[idx][0] + ex * DT, -I_MAX, I_MAX)
-        pid_integral[idx][1] = np.clip(pid_integral[idx][1] + ey * DT, -I_MAX, I_MAX)
-
         # Derivative
         dex = (ex - pid_prev_error[idx][0]) / DT
         dey = (ey - pid_prev_error[idx][1]) / DT
         pid_prev_error[idx] = [ex, ey]
 
-        vx     = KP * ex + KI * pid_integral[idx][0] + KD * dex
-        vy     = KP * ey + KI * pid_integral[idx][1] + KD * dey
+        # Raw PID output (using integral from previous step)
+        vx_raw = KP * ex + KI * pid_integral[idx][0] + KD * dex
+        vy_raw = KP * ey + KI * pid_integral[idx][1] + KD * dey
+
+        # Output saturation
+        vx = np.clip(vx_raw, -V_MAX, V_MAX)
+        vy = np.clip(vy_raw, -V_MAX, V_MAX)
+
+        # Conditional anti-windup: only accumulate integral when output is NOT saturated
+        if abs(vx_raw) < V_MAX:
+            pid_integral[idx][0] = np.clip(pid_integral[idx][0] + ex * DT, -I_MAX, I_MAX)
+        if abs(vy_raw) < V_MAX:
+            pid_integral[idx][1] = np.clip(pid_integral[idx][1] + ey * DT, -I_MAX, I_MAX)
+
         z_dist = tz
 
     return vx, vy, z_dist, trigger_takeoff, trigger_land, led

@@ -59,7 +59,10 @@ KP_Z  = 0.6
 KI_Z  = 0.03
 KD_Z  = 0.2
 DT    = 0.05
-I_MAX = 1.5
+V_MAX   = 0.5   # per-axis velocity saturation limit (m/s) for XY
+VZ_MAX  = 0.4   # per-axis velocity saturation limit (m/s) for Z
+I_MAX   = V_MAX  / KI    # integral XY limit derived from saturation
+I_MAX_Z = VZ_MAX / KI_Z  # integral Z  limit derived from saturation
 
 # Per-drone PID state
 pid_integral    = [[0.0, 0.0, 0.0] for _ in range(N_RMTT)]  # [ix, iy, iz]
@@ -141,20 +144,29 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     ey = ty - robotPose[1]
     ez = tz - robotPose[2]
 
-    # Integrals with anti-windup
-    pid_integral[idx][0] = np.clip(pid_integral[idx][0] + ex * DT, -I_MAX, I_MAX)
-    pid_integral[idx][1] = np.clip(pid_integral[idx][1] + ey * DT, -I_MAX, I_MAX)
-    pid_integral[idx][2] = np.clip(pid_integral[idx][2] + ez * DT, -I_MAX, I_MAX)
-
     # Derivatives
     dex = (ex - pid_prev_error[idx][0]) / DT
     dey = (ey - pid_prev_error[idx][1]) / DT
     dez = (ez - pid_prev_error[idx][2]) / DT
     pid_prev_error[idx] = [ex, ey, ez]
 
-    vx = KP   * ex + KI   * pid_integral[idx][0] + KD   * dex
-    vy = KP   * ey + KI   * pid_integral[idx][1] + KD   * dey
-    vz = KP_Z * ez + KI_Z * pid_integral[idx][2] + KD_Z * dez
+    # Raw PID outputs (using integrals from previous step)
+    vx_raw = KP   * ex + KI   * pid_integral[idx][0] + KD   * dex
+    vy_raw = KP   * ey + KI   * pid_integral[idx][1] + KD   * dey
+    vz_raw = KP_Z * ez + KI_Z * pid_integral[idx][2] + KD_Z * dez
+
+    # Output saturation
+    vx = np.clip(vx_raw, -V_MAX,  V_MAX)
+    vy = np.clip(vy_raw, -V_MAX,  V_MAX)
+    vz = np.clip(vz_raw, -VZ_MAX, VZ_MAX)
+
+    # Conditional anti-windup: only accumulate integral when output is NOT saturated
+    if abs(vx_raw) < V_MAX:
+        pid_integral[idx][0] = np.clip(pid_integral[idx][0] + ex * DT, -I_MAX,   I_MAX)
+    if abs(vy_raw) < V_MAX:
+        pid_integral[idx][1] = np.clip(pid_integral[idx][1] + ey * DT, -I_MAX,   I_MAX)
+    if abs(vz_raw) < VZ_MAX:
+        pid_integral[idx][2] = np.clip(pid_integral[idx][2] + ez * DT, -I_MAX_Z, I_MAX_Z)
 
     return vx, vy, vz, trigger_land, led
 
