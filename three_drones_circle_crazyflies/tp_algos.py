@@ -76,10 +76,11 @@ import math, time
 # all variables declared here will be known by functions below
 # use keyword "global" inside a function if the variable needs to be modified by the function
 
-global TAKEOFF_DONE, Time2Takeoff
+global TAKEOFF_DONE, Time2Takeoff, FILTERED_CF2_XY
 TAKEOFF_DONE = set()
 Time2Takeoff = 5 # time to wait before takeoff for the cf2 drone (in seconds)
 T_INIT = None
+FILTERED_CF2_XY = {}
 
 def velocity(error, p, i, d, current_time, max_speed):
     if current_time > 0.0:
@@ -91,6 +92,11 @@ def velocity(error, p, i, d, current_time, max_speed):
 
     speed = p * error + i * error_integral + d * error_derivative
     return min(max(speed, -max_speed), max_speed)
+
+def low_pass_filter(value, previous_value, alpha=0.2):
+    if previous_value is None:
+        return value
+    return alpha * value + (1 - alpha) * previous_value
 
 # ===================================================================================
 # Control function for turtlebot3 Burger ground vehicle Unicycle model
@@ -164,41 +170,6 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     led = (0,0,0) # led color (r,g,b) in range [0,255]
     
     #  --- TO BE MODIFIED ---
-    global T_INIT
-    if T_INIT is None:
-        T_INIT = clock
-    vx, vy, vz = 0, 0, 0
-    trigger_land = False # trigger to land the drone (True/False)
-
-    center_x, center_y, center_z = 0, 0, 1.4
-    radius = 1.0
-    t = max(0.0, clock - T_INIT - 5.0)
-    theta = 0.4 * t
-    phase = 2 * math.pi * (robotNo - 1) / 3
-    drone_theta = theta + phase
-    goal = [
-        center_x + radius * math.cos(drone_theta),
-        center_y + radius * math.sin(drone_theta),
-        center_z,
-    ]
-
-    ex = goal[0] - robotPose[0]
-    ey = goal[1] - robotPose[1]
-    ez = goal[2] - robotPose[2]
-
-    p, i, d = 0.5, 0.005, 0.05
-    max_speed = 5
-    vx = velocity(ex, p, i, d, clock, max_speed)
-    vy = velocity(ey, p, i, d, clock, max_speed)
-    vz = velocity(ez, 0.7, i, d, clock, max_speed)
-
-    led = (
-        int(127 + 127 * math.sin(drone_theta)),
-        int(127 + 127 * math.sin(drone_theta + 2 * math.pi / 3)),
-        int(127 + 127 * math.sin(drone_theta + 4 * math.pi / 3)),
-    )  # (R, G, B) each between 0 and 255
-    # -----------------------
-
     return vx, vy, vz, trigger_land, led
 # ====================================    
 
@@ -209,7 +180,7 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 # max useable numbers of drones = 3
 # ====================================
 def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
-    global TAKEOFF_DONE, Time2Takeoff, T_INIT
+    global TAKEOFF_DONE, Time2Takeoff, T_INIT, FILTERED_CF2_XY
     nbTB3= len(tb3B_poses[0]) # number of total tb3 robots in the use
     nbTB3W = len(tb3W_poses[0]) # number of total tb3W robots in the use
     nbRMTT = len(rmtt_poses[0]) # number of total dji rmtt drones in the use
@@ -250,11 +221,15 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             center_z,
         ]
 
-        ex = goal[0] - robotPose[0]
-        ey = goal[1] - robotPose[1]
+        filtered_xy = low_pass_filter(
+            np.array(robotPose[:2]), FILTERED_CF2_XY.get(robotNo)
+        )
+        FILTERED_CF2_XY[robotNo] = filtered_xy
+        ex = goal[0] - filtered_xy[0]
+        ey = goal[1] - filtered_xy[1]
 
-        p, i, d = 0.5, 0.005, 0.05
-        max_speed = 5
+        p, i, d = 0.5, 0, 0.05
+        max_speed = 0.4
         vx = velocity(ex, p, i, d, clock, max_speed)
         vy = velocity(ey, p, i, d, clock, max_speed)
         z_dist = goal[2]
