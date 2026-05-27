@@ -320,8 +320,6 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         error = target_position - current_position
 
         dt_control = clock - cf2_control_fn.previous_clock[robotNo]
-        if dt_control <= 1e-6:
-            dt_control = 0.05
 
         # Reset derivative memory at each phase change to avoid derivative kick
         if cf2_control_fn.last_phase_seen[robotNo] != cf2_control_fn.show_phase:
