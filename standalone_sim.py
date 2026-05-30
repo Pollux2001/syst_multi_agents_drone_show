@@ -1,8 +1,9 @@
 import numpy as np
+import math
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from concurrent.futures import ThreadPoolExecutor
-import first_state_show.tp_algos as tp_algos  # edit this line to select your scenario
+import seven_drones_show.tp_algos as tp_algos  # edit this line to select your scenario
 
 # ==========================================
 # 1. SIMULATION INPUTS & CONFIGURATION
@@ -24,11 +25,15 @@ RMTT_pose = [
     [-0.5, -0.866, 0.0]
 ]  # x, y, z 
 
-nbCF2 = 3
+nbCF2 = 7
 CF2_pose = [
-    [ 1.0,    0.0, 0.0],
-    [-0.5,  0.866, 0.0],
-    [-0.5, -0.866, 0.0]
+    [ 0.0,               0.0, 0.0],
+    [ 1.0,               0.0, 0.0],
+    [ 0.5,  math.sqrt(3)/2.0, 0.0],
+    [-0.5,  math.sqrt(3)/2.0, 0.0],
+    [-1.0,               0.0, 0.0],
+    [-0.5, -math.sqrt(3)/2.0, 0.0],
+    [ 0.5, -math.sqrt(3)/2.0, 0.0]
 ]  # x, y, z 
 
 nbRMEP = 0
