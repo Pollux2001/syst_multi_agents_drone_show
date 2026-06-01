@@ -59,7 +59,7 @@ cf2_colors = [
 # ==========================================
 fig = plt.figure(figsize=(10, 8))
 ax  = fig.add_subplot(111, projection='3d')
-ax.set_title("Three Drones — Crazyflie 2 — Triangle → Line (PID)")
+ax.set_title("Three Drones CF2 Show")
 ax.set_xlabel('X (m)')
 ax.set_ylabel('Y (m)')
 ax.set_zlabel('Z (m)')
