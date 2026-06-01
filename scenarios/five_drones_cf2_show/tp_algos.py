@@ -366,8 +366,11 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         next_idx = (i + 1) % nbCF2
         dx = robotPose[0] - cf2_poses[0, next_idx]
         dy = robotPose[1] - cf2_poses[1, next_idx]
-        target   = (robotPose[0] + dx, robotPose[1] + dy, z_hover)
-        vx, vy, z_dist = pd_control(target)
+        dist = math.sqrt(dx**2 + dy**2) + 1e-6
+        speed = 0.3
+        vx = speed * dx / dist
+        vy = speed * dy / dist
+        z_dist = z_hover
         led = (255, 255, 0)
 
     # ============================================================
