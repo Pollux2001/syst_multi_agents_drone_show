@@ -1,0 +1,29 @@
+\chapter{General Introduction}
+\label{ch:Introduction}
+
+
+\section{Context and objective}
+\label{sec:Contexte}
+Drone light shows have become a spectacular alternative to traditional fireworks. By using LED-equipped drone swarms, they can create dynamic shapes, symbols, and three-dimensional formations in the sky. Compared with fireworks, they are more environmentally friendly because they produce no smoke, leave no chemical residues, and generate less noise. They also provide greater creative flexibility, since the trajectories and formations can be programmed and modified according to the desired visual effect.
+
+This case study focuses on this idea of ``painting into the sky'' through the control of multiple aerial robots. From an engineering point of view, a drone light show is a typical example of a multi-agent dynamic system. Several drones must take off, move toward predefined waypoints, maintain a coordinated formation, and land safely. The problem therefore involves trajectory planning, autonomous navigation, formation control, and safe coordination between agents.
+
+The objective of this work is to design and simulate an autonomous flight sequence for different drones, especially the Crazyflie 2.0 and the DJI RoboMaster TT. The drones start on the ground, wait before takeoff, rise to a safe altitude, move toward predefined waypoints, and land automatically after reaching the target landing area. This experiment aims to reproduce the complete motion process of a small-scale drone light show, from takeoff to landing, while highlighting the role of multi-agent coordination in creating a coherent aerial formation.
+
+
+\section{Contribution}
+\label{sec:contribution}
+
+The main contribution of this case study is the design and implementation of a complete autonomous drone-show scenario based on \textit{consensus control} and \textit{formation control}, which were the main concepts studied during the TD sessions. Instead of only making the drones follow simple individual trajectories, we designed a coordinated multi-agent mission including takeoff, collective motion, shape formation, rotation, return, and automatic landing.
+
+In our implementation, the mission is organized as a sequence of phases. After takeoff, the drones first perform a circular motion. Then, a partial consensus phase makes the agents move closer to each other by using local interactions between drones. This is followed by an inverse consensus phase, which increases the distance between agents and prepares the group for the next formation stage. These two phases allow us to illustrate the effect of consensus-based control on the global behavior of the swarm.
+
+The formation part of the project is implemented by assigning each drone a relative position in a triangular shape. The formation can move through the motion of its center, and it can also rotate while keeping its internal structure. This transforms the drone group into a coordinated visual figure, which is directly related to the idea of ``Painting into the Sky''.
+
+From a technical point of view, the motion is controlled with a PD position controller, velocity saturation, and a filtered derivative term in order to obtain smoother trajectories. The simulation also includes a takeoff and landing state machine, speed limits, boundary checking, and collision detection. Therefore, the project does not only demonstrate theoretical concepts, but also builds a more complete and realistic autonomous flight sequence.
+
+Overall, our contribution is to connect the theoretical tools of consensus and formation control with a concrete drone light-show application. The final result is a small-scale multi-agent scenario where several drones cooperate to create, move, and rotate a visual shape in the sky.
+
+
+
+
