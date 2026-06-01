@@ -1,0 +1,81 @@
+\chapter{State of the Art and Case Study Scenario}
+\label{ch:etat_scenario}
+
+This chapter introduces the scientific and technical background of our case study. First, it presents the state of the art related to drone light shows, multi-agent systems, consensus control, and formation control. Then, it describes the scenario chosen for our project and explains how this scenario is translated into a complete autonomous flight sequence, including takeoff, collective motion, shape formation, rotation, return, and landing.
+
+\section{State of the Art}
+
+Drone light shows have become a modern alternative to traditional fireworks. Instead of relying on pyrotechnic effects, they use multiple drones equipped with lights to create dynamic patterns, symbols, or three-dimensional figures in the sky. This approach offers several advantages: the trajectories can be programmed, the same show can be modified or repeated, and the performance produces less smoke, noise, and chemical residue than fireworks. From an engineering point of view, however, a drone light show is not only an artistic performance. It is also a multi-agent coordination problem, because several aerial robots must move together while keeping safe distances and producing a coherent global shape.
+
+This type of application is closely related to the theory of multi-agent systems. A multi-agent system is composed of several agents that interact with each other in order to achieve an individual or collective objective. In the case of drones, each agent has its own position and velocity, but the desired behavior must be achieved at the group level. Therefore, the control problem is not limited to making one drone follow one trajectory. It also includes the coordination between drones, the preservation of relative positions, and the global motion of the formation \cite{olfati2007consensus}.
+
+One of the main concepts studied during the TD sessions is \textit{consensus control}. The objective of consensus is to make several agents reach a common behavior through local interactions. Each agent updates its state according to the states of its neighbors. A simple continuous-time consensus law can be written as:
+
+\begin{equation}
+    \dot{x}_i = \sum_{j \in \mathcal{N}_i} a_{ij}(x_j - x_i),
+\end{equation}
+
+where $x_i$ is the state of agent $i$, $\mathcal{N}_i$ is the set of its neighbors, and $a_{ij}$ is the interaction weight between agent $i$ and agent $j$. This equation shows that each agent tends to reduce the difference between its own state and the states of its neighbors. As a result, the whole group can progressively converge toward a common behavior \cite{olfati2007consensus}.
+
+However, in a drone light show, the drones should not all converge to the same position. If all drones gathered at one point, the visual shape would disappear. This is why \textit{formation control} is also necessary. Formation control aims to make several agents maintain a desired geometric structure while moving. In this case, each drone has to reach a specific relative position inside the formation. This makes it possible to create a visible shape in the sky, such as a triangle, a circle, or a more complex pattern \cite{oh2015formation}.
+
+A general expression for the desired position of drone $i$ in a moving formation can be written as:
+
+\begin{equation}
+    p_i^{\star}(t) = c(t) + R(\theta(t))r_i,
+\end{equation}
+
+where $p_i^{\star}(t)$ is the desired position of drone $i$, $c(t)$ is the barycenter of the formation, $r_i$ is the relative position of drone $i$ inside the formation, and $R(\theta(t))$ is a rotation matrix. This formulation separates the global motion of the formation from its internal shape. The barycenter controls the position of the whole group, while the relative vectors define the geometry of the formation. The rotation matrix can also be used to rotate the whole shape while preserving the relative distances between drones.
+
+In our case study, the scenario is inspired by small programmable drone platforms such as the Crazyflie and the DJI RoboMaster TT \cite{bitcrazeCrazyflie,djiRoboMasterTT}. These platforms are suitable for educational and experimental projects because they allow students to implement autonomous flight sequences, test control laws, and simulate or reproduce multi-agent behaviors at a small scale. Based on this idea, our project aims to connect the theoretical notions of consensus and formation control with a concrete application: a small-scale drone light show.
+
+\section{Case Study Scenario}
+
+The case study is based on the idea of ``Painting into the Sky''. The objective is to use drones as moving light points in order to create dynamic figures in the air. In this chapter, the focus is not yet on the mathematical control laws or on the implementation details. Instead, the goal is to present the artistic and operational structure of the show: what each scenario represents, how the mission is organized, and how the number of drones changes the visual possibilities.
+
+Three different presentations are considered in this project. The first one uses three drones, the second one uses five drones, and the last one uses seven drones. This progression is useful because it shows how the same general mission can be adapted to formations of increasing complexity. With three drones, the show remains simple and easy to understand. With five drones, the group can produce richer geometric patterns. With seven drones, the formation becomes more expressive and closer to a small drone light show.
+
+All three scenarios follow the same general structure. The drones start from a safe initial configuration, take off, perform a collective motion, transform their relative positions, create a visible formation, rotate the formation, return to a safe configuration, and land. The mathematical description of these phases, including the reference trajectories, consensus behavior, formation geometry, and control strategy, is developed in Chapter~\ref{ch:theorie}. Therefore, the present chapter introduces the scenarios at a conceptual level, while the next chapter explains how each phase is modeled mathematically.
+
+\subsection{Scenario with Three Drones}
+
+The first scenario uses three drones. At the beginning of the show, the drones are placed on the ground with enough distance between them to allow a safe takeoff. After the takeoff phase, they rise to a common hovering altitude and begin the aerial part of the presentation. The first visual motion is a circular movement, where the drones move around the center of the group while remaining separated. This creates a simple dynamic effect and introduces the idea that the drones are not isolated robots, but parts of the same coordinated system.
+
+The show then introduces a contraction and expansion sequence. In the contraction part, the drones move according to a partial consensus behavior, which visually brings the group closer together. In the expansion part, the motion is reversed, creating the impression that the group opens again. These two phases are important because they show how local interactions between agents can produce a global visual transformation.
+
+After this transformation, the drones form a triangle. This is the main formation of the three-drone scenario. Once the triangle is established, the formation rotates in the horizontal plane. The drones keep the triangular shape while the whole figure turns as a single object. Finally, the drones return to a safe configuration and land. This complete sequence provides a clear and compact demonstration of takeoff, collective motion, consensus-inspired behavior, formation, rotation, return, and landing.
+
+
+\subsection{Scenario with Five Drones}
+
+This simulation presents a coordinated aerial show performed by a fleet of five Crazyflie 2 nano-quadrotors, composed of ten distinct phases, each highlighting a different collective behavior or geometric formation, and designed to demonstrate several key concepts from multi-agent systems theory applied to drone swarms.
+
+The five drones are initially placed on the ground in a straight line along the X axis, evenly spaced at 0.75 m intervals. After a short delay, all drones take off simultaneously and climb to a cruising altitude of 1.0 m, hovering until the entire fleet has reached the target height. Once airborne, the drones organize themselves into a regular horizontal pentagon. Unlike a simple point-to-point navigation approach, this phase uses a displacement-based formation control algorithm, where each drone computes its velocity command based on the relative position errors with respect to all other drones in the fleet, combined with a centroid anchoring term to stabilize the formation in space. This distributed approach reflects the theory developed in formation control for multi-agent systems, where each agent only needs information from its neighbors to converge to the desired shape. Once the pentagon is formed, the entire formation performs one full 360° rotation around the vertical axis over a duration of 12 seconds, with each drone following a circular arc trajectory computed from its initial angle, producing a smooth synchronized spinning effect.
+
+Following the rotation, the fleet executes two consecutive consensus-based maneuvers. In the first, a partial consensus algorithm is applied on a directed ring communication graph connecting the drones in a cyclic sequence: each drone navigates toward the position of the next drone in the ring, causing all five to progressively converge toward a common central point. The phase ends automatically when the maximum pairwise distance between any two drones falls below a defined threshold. Immediately after, the same ring topology is used with the opposite sign, so that each drone now moves away from the next drone in the ring. This symmetric repulsion causes the swarm to spread out from the center in a coordinated fashion, ending when the minimum pairwise distance exceeds a given threshold and sufficient separation is guaranteed.
+
+The drones then align into a straight line along the Y axis at cruising altitude, spaced 1.0 m apart. A notable feature of this maneuver is the dynamic target assignment: at the moment of the phase transition, drones are sorted by their current Y position and matched to line targets in the same order, preventing any drone from crossing the path of another and significantly reducing collision risk. From the line, the fleet transitions into the shape of the letter Z in the vertical XZ plane, with two drones on the top horizontal bar, one at the center of the diagonal, and two on the bottom bar, demonstrating the ability of the swarm to form asymmetric non-regular patterns. The drones then reorganize into a vertical regular pentagon in the XZ plane, again using the displacement-based formation control algorithm, before performing a full 360° rotation of this vertical formation around the Z axis, creating a dynamic three-dimensional visual effect. Finally, the fleet returns once more to a straight line along the Y axis before each drone descends and lands individually.
+
+Throughout the entire show, each drone's navigation is handled by a PD controller with a low-pass filtered derivative term, which provides smooth velocity commands while avoiding abrupt reactions to sensor noise. A critical safety layer remains active at all times: an Artificial Potential Field repulsion mechanism, inspired by Khatib's obstacle avoidance approach \cite{khatib1986apf}, monitors the distance between every pair of drones and generates repulsive velocity corrections whenever two drones enter a defined safety radius. As the distance decreases further, the navigation command is progressively attenuated so that repulsion can take full control before a collision occurs, ensuring a minimum separation is maintained throughout the choreography.
+
+\subsection{Scenario with Seven Drones}
+
+
+
+\section{Summary of the Scenario}
+
+The scenarios can be summarized as follows:
+
+\begin{enumerate}
+    \item The drones start on the ground.
+    \item They take off and reach a safe hovering altitude.
+    \item They perform a circular collective motion.
+    \item They apply a partial consensus behavior.
+    \item They apply an inverse consensus behavior.
+    \item They form a triangular shape.
+    \item They rotate the triangle formation.
+    \item They return to their initial positions.
+    \item They land automatically.
+\end{enumerate}
+
+This organization separates the artistic description of the show from the mathematical modeling. In this chapter, the phases are presented as visible parts of the drone performance. In the next chapter, the same phases are studied in more detail through the equations used to describe the trajectories, the interaction between agents, the formation geometry, and the control laws.

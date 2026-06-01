@@ -1,0 +1,92 @@
+\chapter*{Annexe 1 (si besoin)}
+\addcontentsline{toc}{chapter}{Annexe 1}
+
+%changer le format des sections, subsections pour apparaittre sans le num de chapitre
+\makeatletter
+\renewcommand{\thesection}{\@arabic\c@section}
+\makeatother
+
+%recommencer la numérotation des section à "1"
+\setcounter{section}{0}
+
+\section*{Style de rédaction}
+Un rapport technique se rédige dans un style neutre. Il convient en particulier d’éviter un vocabulaire familier ou trop littéraire. On recherche la concision et la clarté en évitant les phrases trop longues et les termes imprécis.
+
+L’usage des pronoms personnels (par exemple \textit{nous}) est à limiter à de rare cas précis (par exemple pour mettre l’accent sur un choix déterminant ou pour se démarquer par rapport aux autres).
+
+Une énumération est constituée d’objets qui se situent sur le même plan, par ailleurs les éléments de l’énumération doivent avoir la même nature grammaticale.
+
+Il est fondamental de relire le rapport avec un regard extérieur, en particulier pour vérifier le sens des phrases ainsi que leur clarté.
+
+
+\section*{Formules mathématiques}
+\begin{itemize}
+	\item Toutes les notations et grandeurs utilisées doivent être définies (avec leurs dimensions dans le cas des matrices) et, dans la mesure du possible, ces notations doivent rester conventionnelles.
+	\item Les notations doivent être cohérentes sur l’ensemble du rapport (éviter en particulier de réutiliser la même notation pour des objets différents).
+	\item Les formules doivent en général être introduites par une phrase pour les rendre plus explicites.
+	\item Il est conseillé de numéroter les équations, les tableaux, les figures etc. et de les citer dans le texte. Par exemple, la variable $\textbf{x}$ est introduite dans (\ref{eq:x}) de la manière suivante : 
+	\begin{equation}
+	\label{eq:x}
+	\dot{\textbf{x}}(t) = \textbf{A} \textbf{x}(t) +\textbf{B} \textbf{u}(t)
+	\end{equation}
+\end{itemize}
+
+On adopte en général les conventions suivantes pour la présentation des formules :
+\begin{itemize}
+	\item Les scalaires sont en italique et en minuscule ;
+	\item Les vecteurs sont en gras et en minuscule ;
+	\item Les matrices sont en gras et en majuscule (par exemple).
+
+\end{itemize}
+
+\section*{Figures et tableaux}
+Dans la suite quelques consignes pour insérer les figures (ou tableaux) dans le rapport sont précisées :
+\begin{itemize}
+	\item Toutes les figures doivent être numérotées et comporter une légende.
+	\item Pour ne pas couper les paragraphes avec des figures, faire référence au N\textsuperscript{\underline{\scriptsize o}} figure dans le texte (ex. ”\textit{voir} Figure \ref{fig:smile}” plutôt que ”\textit{on voit sur la figure ci-dessous} :”).
+	\item Afin d’optimiser la mise en page et d’éviter les grands blocs blancs, mettre les figures en haut ou en bas de page, ou encore les regrouper sur une même page.
+\end{itemize}
+
+Quelques règles pour une présentation des courbes correcte :
+\begin{itemize}
+	\item Préciser la nature et les unités des axes ;
+	\item Ajouter une légende permettant de distinguer les courbes (s’il y a plusieurs courbes) ;
+	\item S’assurer de la lisibilité des échelles ;
+	\item S’assurer de la lisibilité des courbes (en particulier si l’impression est en noir et blanc éviter les couleurs et préférer des symboles ou des styles de lignes différents pour identifier les courbes).
+\end{itemize}
+
+
+\textbf{Exemple de figure.} Un premier concept est illustré dans la Figure \ref{fig:smile} (voir comment citer une figure dans le texte).
+
+%inclusion d'une mage dans le document
+\begin{figure}[!h]
+	\begin{center}
+		%taille de l'image en largeur
+		%remplacer "width" par "height" pour régler la hauteur
+		\includegraphics[width=5cm]{figures/smile}
+	\end{center}
+	%légende de l'image
+	\caption{Une jolie figure}
+	\label{fig:smile}
+\end{figure}
+
+
+\vspace{1cm}
+
+\section*{Bibliographie}
+Quelques règles pour une présentation correcte des références bibliographiques sont proposées dans la suite :
+\begin{itemize}
+	\item Les références bibliographiques sont regroupées à la fin du document ;
+	\item Les références doivent être complètes : titre, auteurs, date, éditeur (revue, volume et numéro de pages pour les articles de revue) ;
+	\item Toutes les références bibliographiques sont numérotées et doivent être citées dans le document, par exemple \cite{robo}.
+\end{itemize}
+
+\section*{Divers}
+Il est conseillé de respecter les règles de typographie, en particulier :
+\begin{itemize}
+	\item Ne mettre des majuscules qu’en début de phrase, sur les noms propres et les sigles ;
+	\item Ne pas mettre de ’ :’ ou de ’.’ à la fin des titres ;
+	\item Vérifier que la numérotation et le style des titres sont uniformes ;
+	\item Définir un bas (ou haut) de page contenant le numéro de page, le nom des auteurs et le titre du document, la date ;
+	\item Réaliser le double alignement du texte (à droite et à gauche) du texte sur l’ensemble du document.
+\end{itemize}
