@@ -97,15 +97,6 @@ def tb3B_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
 
     #  --- TO BE MODIFIED --- 
-    if robotNo == 1:    
-        goal = [2,-2]
-    if robotNo == 2:    
-        goal = [1,-2]
-    if robotNo == 3:
-        time.sleep(2)
-        goal = [0,-2]  
-    vx = 0.2 * (-robotPose[0] + goal[0])
-    vy = 0.2 * (-robotPose[1] + goal[1])
     # -----------------------
 
     return vx,vy
@@ -128,9 +119,6 @@ def tb3W_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
 
     #  --- TO BE MODIFIED --- 
-    goal = [-1,1]
-    vx = 0.2 * (-robotPose[0] + goal[0])
-    vy = 0.2 * (-robotPose[1] + goal[1])
     # -----------------------
 
     return vx,vy
@@ -153,25 +141,6 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     led = (0,0,0) # led color (r,g,b) in range [0,255]
     
     #  --- TO BE MODIFIED ---
-    vx = 0.0
-    vy = 0.0
-    vz = 0.0
-    trigger_land = False # trigger to land the drone (True/False)
-    goal = [-2,1,1]
-    ex = goal[0] - robotPose[0]
-    ey = goal[1] - robotPose[1]
-    ez = goal[2] - robotPose[2]
-    if abs(ex) > 0.2 or abs(ey) > 0.2 or abs(ez) > 0.1:
-        vx = 0.5 * ex
-        vy = 0.5 * ey
-        vz = 0.5 * ez
-        led = (255,0,0)
-    else:
-        vx = 0
-        vy = 0
-        vz = 0
-        led = (0,255,0)
-        trigger_land = True
     # -----------------------
 
     return vx,vy,vz,trigger_land,led
@@ -226,6 +195,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # Phase 1 / 2 vertical circle geometry
     vertical_center = np.array([0.0, 0.0, z_hover])
     vertical_radius = 1.0
+    safe_consensus_radius = 0.55
     vertical_positions = np.array([
         [ 0.0, 0.0,             z_hover],
         [ 1.0, 0.0,             z_hover],
@@ -238,13 +208,13 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
     # Phase 6: line formation
     line_positions = np.array([
-        [0.0, 0.0, z_hover],
-        [0.5, 0.0, z_hover],
-        [1.0, 0.0, z_hover],
-        [1.5, 0.0, z_hover],
-        [2.0, 0.0, z_hover],
-        [2.5, 0.0, z_hover],
-        [3.0, 0.0, z_hover]
+        [-1.5, 0.0, z_hover],
+        [-1.0, 0.0, z_hover],
+        [-0.5, 0.0, z_hover],
+        [ 0.0, 0.0, z_hover],
+        [ 0.5, 0.0, z_hover],
+        [ 1.0, 0.0, z_hover],
+        [ 1.5, 0.0, z_hover]
     ])
 
     # Intermediate y-offsets used to avoid collisions when going to line / new formation
@@ -252,17 +222,17 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
     # Phase 8: new formation
     new_formation_positions = np.array([
-        [  0.0,  1.5, z_hover],
-        [  0.0,  0.5,     2.0],
-        [-0.75,  0.5,    1.75],
-        [ 0.75,  0.5,    1.75],
-        [  0.0, -0.5,     2.0],
-        [-0.75, -0.5,    1.75],
-        [ 0.75, -0.5,    1.75]
+        [ 0.0,  1.65, z_hover],
+        [-1.1,  0.65,    1.9],
+        [-0.35, 0.65,    2.3],
+        [ 1.1,  0.65,    1.9],
+        [-1.1, -0.65,    1.9],
+        [ 0.35,-0.65,    2.3],
+        [ 1.1, -0.65,    1.9]
     ])
 
     # Phase 9: tunnel target for drone 1
-    tunnel_target_drone_1 = np.array([0.0, -1.5, z_hover])
+    tunnel_target_drone_1 = np.array([0.0, -1.65, z_hover])
 
     # Durations
     move_to_vertical_duration_max = 10.0
@@ -353,6 +323,21 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             return -limit
         return value
 
+    def smooth_step(progress):
+        progress = max(0.0, min(1.0, progress))
+        return progress * progress * (3.0 - 2.0 * progress)
+
+    def vertical_ring_target(radius):
+        if robotNo == 1:
+            return vertical_center.copy()
+
+        angle = 2.0 * math.pi * (robotNo - 2) / 6.0
+        return np.array([
+            vertical_center[0] + radius * math.cos(angle),
+            0.0,
+            vertical_center[2] + radius * math.sin(angle)
+        ])
+
     def pd_position_control(target_position):
         """
         PD controller with low-pass filtered derivative.
@@ -394,7 +379,37 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         vz_cmd = saturate(vz_cmd, max_vz_cmd)
 
         z_cmd = robotPose[2] + vz_cmd
-        z_cmd = max(0.0, min(2.0, z_cmd))
+        z_cmd = max(0.0, min(2.5, z_cmd))
+
+        return vx_cmd, vy_cmd, z_cmd
+
+    def apply_separation_guardrail(vx_cmd, vy_cmd, z_cmd):
+        guard_radius = 0.55
+        strength = 0.35
+        current_position = np.array([robotPose[0], robotPose[1], robotPose[2]])
+        correction = np.zeros(3)
+
+        for other_index in range(nbCF2):
+            if other_index == i:
+                continue
+
+            other_position = cf2_poses[:, other_index]
+            delta = current_position - other_position
+            distance = np.linalg.norm(delta)
+
+            if distance < 1e-4:
+                angle = 2.0 * math.pi * i / max(nbCF2, 1)
+                delta = np.array([math.cos(angle), math.sin(angle), 0.0])
+                distance = 1.0
+
+            if distance < guard_radius:
+                direction = delta / distance
+                proximity = (guard_radius - distance) / guard_radius
+                correction += strength * proximity * proximity * direction
+
+        vx_cmd = saturate(vx_cmd + correction[0], max_vxy_cmd)
+        vy_cmd = saturate(vy_cmd + correction[1], max_vxy_cmd)
+        z_cmd = max(0.0, min(2.5, z_cmd + correction[2]))
 
         return vx_cmd, vy_cmd, z_cmd
 
@@ -459,9 +474,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             change_phase(3)
 
     elif phase == 3:
-        if max_distance_between_cf2() < consensus_distance_threshold:
-            change_phase(4)
-        elif phase_time >= consensus_duration_max:
+        if phase_time >= consensus_duration_max:
             change_phase(4)
 
     elif phase == 4:
@@ -549,35 +562,23 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         led = (255, 120, 0)
 
     # ========================================================
-    # Phase 3: consensus
+    # Phase 3: consensus contraction
     # ========================================================
     elif phase == 3:
-        next_index = (i + 1) % 7
-
-        target = np.array([
-            cf2_poses[0, next_index],
-            cf2_poses[1, next_index],
-            cf2_poses[2, next_index]
-        ])
+        progress = smooth_step(phase_time / consensus_duration_max)
+        radius = vertical_radius + progress * (safe_consensus_radius - vertical_radius)
+        target = vertical_ring_target(radius)
 
         vx, vy, z_dist = pd_position_control(target)
         led = (255, 0, 255)
 
     # ========================================================
-    # Phase 4: inverted consensus
+    # Phase 4: safe consensus expansion
     # ========================================================
     elif phase == 4:
-        previous_index = (i - 1) % 7
-
-        dx = robotPose[0] - cf2_poses[0, previous_index]
-        dy = robotPose[1] - cf2_poses[1, previous_index]
-        dz = robotPose[2] - cf2_poses[2, previous_index]
-
-        target = np.array([
-            robotPose[0] + dx,
-            robotPose[1] + dy,
-            robotPose[2] + dz
-        ])
+        progress = smooth_step(phase_time / inverse_consensus_duration)
+        radius = safe_consensus_radius + progress * (vertical_radius - safe_consensus_radius)
+        target = vertical_ring_target(radius)
 
         vx, vy, z_dist = pd_position_control(target)
         led = (255, 255, 0)
@@ -595,8 +596,8 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             pair_angle = 2.0 * math.pi * pair_id / 3.0
             global_angle = pair_angle + 2.0 * math.pi * phase_time / pair_flight_duration
 
-            pair_center_radius = 0.9
-            pair_half_distance = 0.22
+            pair_center_radius = 1.05
+            pair_half_distance = 0.30
 
             pair_center = np.array([
                 pair_center_radius * math.cos(global_angle),
@@ -626,9 +627,17 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # Phase 6: drones' line
     # ========================================================
     elif phase == 6:
-        # First half: go to line x/z positions, but with different y lanes.
-        # Second half: collapse all y values back to 0.
-        if phase_time < line_duration / 2.0:
+        # First third: move sideways into a lane.
+        # Second third: move along that lane to the line slot.
+        # Last third: collapse all y values back to 0.
+        use_guardrail = phase_time < 2.0 * line_duration / 3.0
+        if phase_time < line_duration / 3.0:
+            target = np.array([
+                robotPose[0],
+                lane_offsets[i],
+                z_hover
+            ])
+        elif use_guardrail:
             target = np.array([
                 line_positions[i, 0],
                 lane_offsets[i],
@@ -638,34 +647,25 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             target = line_positions[i]
 
         vx, vy, z_dist = pd_position_control(target)
+        if use_guardrail:
+            vx, vy, z_dist = apply_separation_guardrail(vx, vy, z_dist)
         led = (120, 255, 120)
 
 
     # ========================================================
-    # Phase 7: drones' chain
+    # Phase 7: travelling S wave
     # ========================================================
     elif phase == 7:
-        leader_radius = 1.0
         omega = 2.0 * math.pi / chain_duration
+        wave_angle = omega * phase_time + i * math.pi / 3.0
 
-        if robotNo == 1:
-            angle = omega * phase_time
-
-            target = np.array([
-                leader_radius * math.cos(angle),
-                1.0 * math.sin(2.0 * angle),
-                z_hover + 0.25 * math.sin(angle)
-            ])
-        else:
-            leader_index = i - 1
-
-            # The follower tracks the previous drone with a small offset
-            # to reduce collision risk.
-            target = np.array([
-                cf2_poses[0, leader_index],
-                cf2_poses[1, leader_index] - 0.25,
-                cf2_poses[2, leader_index]
-            ])
+        # Keep the line slots fixed in x. Only y/z make the S wave,
+        # so neighboring drones do not chase or cross each other.
+        target = np.array([
+            line_positions[i, 0],
+            0.75 * math.sin(wave_angle),
+            z_hover + 0.18 * math.sin(wave_angle + math.pi / 2.0)
+        ])
 
         vx, vy, z_dist = pd_position_control(target)
         led = (180, 80, 255)
@@ -674,7 +674,14 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # Phase 8: new formation
     # ========================================================
     elif phase == 8:
-        if phase_time < new_formation_duration / 2.0:
+        use_guardrail = phase_time < 2.0 * new_formation_duration / 3.0
+        if phase_time < new_formation_duration / 3.0:
+            target = np.array([
+                robotPose[0],
+                new_formation_positions[i, 1] + lane_offsets[i],
+                robotPose[2]
+            ])
+        elif use_guardrail:
             target = np.array([
                 new_formation_positions[i, 0],
                 new_formation_positions[i, 1] + lane_offsets[i],
@@ -684,6 +691,8 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             target = new_formation_positions[i]
 
         vx, vy, z_dist = pd_position_control(target)
+        if use_guardrail:
+            vx, vy, z_dist = apply_separation_guardrail(vx, vy, z_dist)
         led = (0, 180, 255)
 
     # ========================================================
@@ -697,6 +706,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             target = new_formation_positions[i]
 
         vx, vy, z_dist = pd_position_control(target)
+        vx, vy, z_dist = apply_separation_guardrail(vx, vy, z_dist)
         led = (255, 80, 80)
 
     # ========================================================

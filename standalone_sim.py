@@ -10,20 +10,17 @@ import seven_drones_show.tp_algos as tp_algos  # edit this line to select your s
 # ==========================================
 dt = 0.05  # Simulation time step (seconds)
 
+# This standalone setup is prepared for seven_drones_show/tp_algos.py:
+# only seven Crazyflie 2 drones are active, starting from the same
+# center + hexagon layout expected by the show algorithm.
 nbTb3B = 0
-Tb3B_pose = [[0.0, 1.4, 0.0], [0.0, -1.4, 0.0], [-1.4, 0.0, 0.0]]  # x, y, theta
+Tb3B_pose = []  # x, y, theta
 
 nbTb3W = 0
-Tb3W_pose = [[1.0, 0.0, 0.0]]  # x, y, theta
+Tb3W_pose = []  # x, y, theta
 
-nbRMTT = 0   # dji rmtt drones
-# Started at z=0.0 so we can see the 3s straight line takeoff.
-# The three initial x/y positions match the 120-degree circle formation.
-RMTT_pose = [
-    [ 1.0,    0.0, 0.0],
-    [-0.5,  0.866, 0.0],
-    [-0.5, -0.866, 0.0]
-]  # x, y, z 
+nbRMTT = 0
+RMTT_pose = []  # x, y, z
 
 nbCF2 = 7
 CF2_pose = [
@@ -37,11 +34,11 @@ CF2_pose = [
 ]  # x, y, z 
 
 nbRMEP = 0
-RMEP_pose = [[-1.0, -1.0, 0.0]]  # x, y, theta
+RMEP_pose = []  # x, y, theta
 
 nbObstacle = 0
-obstacle_size = [[1.0, 0.5, 2.5], [0.5, 1.1, 2.5]]
-obstacle_pose = [[0.0, 0.0, 0.0], [3.0, -3.0, 0.0]]
+obstacle_size = []
+obstacle_pose = []
 
 # ==========================================
 # 2. HARDWARE SPECS (SPEEDS, RADII, TIMERS)
