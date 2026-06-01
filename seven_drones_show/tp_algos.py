@@ -195,7 +195,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # Phase 1 / 2 vertical circle geometry
     vertical_center = np.array([0.0, 0.0, z_hover])
     vertical_radius = 1.0
-    safe_consensus_radius = 0.55
+    safe_consensus_radius = 0.75
     vertical_positions = np.array([
         [ 0.0, 0.0,             z_hover],
         [ 1.0, 0.0,             z_hover],
@@ -208,17 +208,18 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
     # Phase 6: line formation
     line_positions = np.array([
-        [-1.5, 0.0, z_hover],
-        [-1.0, 0.0, z_hover],
-        [-0.5, 0.0, z_hover],
+        [-2.1, 0.0, z_hover],
+        [-1.4, 0.0, z_hover],
+        [-0.7, 0.0, z_hover],
         [ 0.0, 0.0, z_hover],
-        [ 0.5, 0.0, z_hover],
-        [ 1.0, 0.0, z_hover],
-        [ 1.5, 0.0, z_hover]
+        [ 0.7, 0.0, z_hover],
+        [ 1.4, 0.0, z_hover],
+        [ 2.1, 0.0, z_hover]
     ])
 
     # Intermediate y-offsets used to avoid collisions when going to line / new formation
-    lane_offsets = np.array([0.0, 0.45, -0.45, 0.9, -0.9, 1.35, -1.35])
+    lane_offsets = np.array([0.0, 0.7, -0.7, 1.4, -1.4, 2.1, -2.1])
+    line_lane_z_offsets = np.array([0.0, 0.18, -0.18, 0.36, -0.36, 0.54, -0.54])
 
     # Phase 8: new formation
     new_formation_positions = np.array([
@@ -596,8 +597,8 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             pair_angle = 2.0 * math.pi * pair_id / 3.0
             global_angle = pair_angle + 2.0 * math.pi * phase_time / pair_flight_duration
 
-            pair_center_radius = 1.05
-            pair_half_distance = 0.30
+            pair_center_radius = 1.25
+            pair_half_distance = 0.38
 
             pair_center = np.array([
                 pair_center_radius * math.cos(global_angle),
@@ -635,13 +636,13 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             target = np.array([
                 robotPose[0],
                 lane_offsets[i],
-                z_hover
+                z_hover + line_lane_z_offsets[i]
             ])
         elif use_guardrail:
             target = np.array([
                 line_positions[i, 0],
                 lane_offsets[i],
-                line_positions[i, 2]
+                line_positions[i, 2] + line_lane_z_offsets[i]
             ])
         else:
             target = line_positions[i]
