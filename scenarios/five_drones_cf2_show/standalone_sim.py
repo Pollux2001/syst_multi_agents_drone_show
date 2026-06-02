@@ -16,13 +16,13 @@ nbRMEP = 0
 nbObstacle = 0
 
 nbCF2 = 5
-# Starting positions: line on X axis, on the ground
+# Starting positions: pentagon on the ground (PENTA_R = 1.2 m, angles k*72 deg)
 CF2_pose = [
-    [-1.50, 0.0, 0.0],
-    [-0.75, 0.0, 0.0],
-    [ 0.00, 0.0, 0.0],
-    [ 0.75, 0.0, 0.0],
-    [ 1.50, 0.0, 0.0],
+    [ 1.200,  0.000, 0.0],   # drone 1  (theta =   0 deg)
+    [ 0.371,  1.141, 0.0],   # drone 2  (theta =  72 deg)
+    [-0.971,  0.706, 0.0],   # drone 3  (theta = 144 deg)
+    [-0.971, -0.706, 0.0],   # drone 4  (theta = 216 deg)
+    [ 0.371, -1.141, 0.0],   # drone 5  (theta = 288 deg)
 ]
 
 # ==========================================
@@ -51,11 +51,11 @@ cf2_timers = [0.0] * nbCF2
 
 # Per-drone LED colors (updated live from controller output)
 cf2_colors = [
-    (1.0, 0.2, 0.2),   # drone 1 — red
-    (1.0, 0.6, 0.0),   # drone 2 — orange
-    (0.2, 1.0, 0.2),   # drone 3 — green
-    (0.2, 0.2, 1.0),   # drone 4 — blue
-    (0.8, 0.0, 0.8),   # drone 5 — purple
+    (1.0, 0.2, 0.2),   
+    (1.0, 0.6, 0.0),   
+    (0.2, 1.0, 0.2),   
+    (0.2, 0.2, 1.0),   
+    (0.8, 0.0, 0.8),   
 ]
 
 # ==========================================
@@ -63,20 +63,20 @@ cf2_colors = [
 # ==========================================
 fig = plt.figure(figsize=(10, 9))
 ax  = fig.add_subplot(111, projection='3d')
-ax.set_title("Five Drones CF2 Show")
+ax.set_title("Five Drones CF2 Show ")
 ax.set_xlabel('X (m)')
 ax.set_ylabel('Y (m)')
 ax.set_zlabel('Z (m)')
 ax.set_navigate(False)
 
 X_MIN, X_MAX = -2.5, 2.5
-Y_MIN, Y_MAX = -2.5, 2.5
+Y_MIN, Y_MAX = -4.5, 4.5
 Z_MIN, Z_MAX =  0.0, 3.0
 
 ax.set_xlim([X_MIN, X_MAX])
 ax.set_ylim([Y_MIN, Y_MAX])
 ax.set_zlim([Z_MIN, Z_MAX])
-ax.set_box_aspect((5, 5, 3))
+ax.set_box_aspect((5, 9, 3))
 
 marker_colors = ['red', 'orange', 'green', 'blue', 'purple']
 cf2_plots = [

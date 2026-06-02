@@ -4,17 +4,18 @@
     (all variables in SI unit)
 
     Scenario: five_drones_cf2_show  —  5 Crazyflie 2 drones
-    Phase 0  : takeoff to 1 m
-    Phase 1  : form horizontal pentagon
-    Phase 2  : one full rotation of the pentagon
-    Phase 3  : partial consensus   (ring 1→2→3→4→5→1, drones converge)
-    Phase 4  : inverse consensus   (same ring, drones diverge)
-    Phase 5  : straight line on Y axis
-    Phase 6  : Z shape in the XZ plane (viewed from Y)
-    Phase 7  : vertical pentagon in the XZ plane
-    Phase 8  : rotating vertical pentagon (one full turn)
-    Phase 9  : straight line on Y axis again
-    Phase 10 : each drone lands individually
+    Phase 0  : takeoff to 1 m  (drones start in pentagon on the ground)
+    Phase 1  : one full 360 rotation of the horizontal pentagon
+    Phase 2  : partial consensus   (ring, drones converge)
+    Phase 3  : inverse consensus   (same ring, drones diverge)
+    Phase 4  : split — 3 drones to y=+Y_SPLIT, 2 to y=-Y_SPLIT
+    Phase 5  : rise to individual vertical-pentagon heights  (Z only)
+    Phase 6  : move to XY positions of vertical pentagon    (XY only)
+    Phase 7  : vertical pentagon rotates one full 360 turn  (Z fixed)
+    Phase 8  : split back to side positions                 (XY only)
+    Phase 9  : descend to 1 m                               (Z only)
+    Phase 10 : form center line at 1 m
+    Phase 11 : land
 '''
 
 import numpy as np
@@ -45,40 +46,60 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     i     = robotNo - 1          # drone index 0-4
 
     # ============================================================
-    # Show parameters
+    # Show parameters  —  modify these to tune the choreography
     # ============================================================
     z_hover             = 1.0
     z_takeoff_threshold = 0.9 * z_hover
 
-    PENTA_R           = 1.2    # horizontal pentagon radius (m)
-    VERT_R            = 1.0    # vertical pentagon radius (m)
-    ROTATION_DURATION = 12.0   # seconds for one full 360° rotation
-    FORMATION_TIMEOUT = 10.0   # max time to wait for a formation to settle
-    ARRIVAL_TOL       = 0.15   # 3-D arrival threshold (m)
+    PENTA_R    = 1.2    # horizontal pentagon radius (m)
 
-    LINE_Y_SPACING = 1.0   # distance between consecutive drones in the Y-line (m)
-    VERT_Z_OFFSET  = 0.4   # extra height added to the vertical pentagon center (m)
+    VERT_Z_MAX = 2.5    # height of the highest drone in vertical pentagon (m)
+    VERT_Z_MIN = 0.5    # height of the lowest  drone in vertical pentagon (m)
+    _sin72     = math.sin(2.0 * math.pi / 5)            # sin(72 deg) ~ 0.9511
+    z_center   = (VERT_Z_MAX + VERT_Z_MIN) / 2.0        # 1.5 m
+    VERT_R     = (VERT_Z_MAX - VERT_Z_MIN) / (2.0 * _sin72)  # ~ 1.051 m
 
-    Z_HALF_W = 0.8   # half-width of the Z shape along X (m)
-    Z_Z_TOP  = 1.8   # Z height of the top bar of the Z shape (m)
-    Z_Z_BOT  = 0.5   # Z height of the bottom bar of the Z shape (m)
+    T_ROTATE    = 14.0   # duration of one full 360 rotation (s)
+    T_CONSENSUS = 18.0   # max duration of consensus phase (s)
+    T_INVERSE   = 15.0   # max duration of inverse consensus phase (s)
+    T_FORMATION = 25.0   # max time to settle into any formation (s)
 
-    K_FORM = 0.5    # displacement-based formation gain (relative position errors)
-    K_ABS  = 0.35   # absolute anchoring gain (centroid stabilization)
+    Y_SPLIT       = 2.5   # |y| of the two split lines (m)
+    SPLIT_X       = 1.0   # x spacing between drones within a split group (m)
+    LINE_Y_SPACING = 0.9  # spacing between drones in the center line (m)
 
-    CONSENSUS_THRESH  = 0.5    # max pairwise distance to end consensus phase (m)
-    CONSENSUS_TIMEOUT = 10.0   # max duration of consensus phase (s)
-    INVERSE_THRESH    = 1.3    # min pairwise distance to end inverse consensus (m)
-    INVERSE_TIMEOUT   = 8.0    # max duration of inverse consensus phase (s)
+    ARRIVAL_TOL   = 0.15  # 3-D position tolerance (m)
+    ARRIVAL_TOL_Z = 0.12  # altitude-only tolerance for Z-only phases (m)
 
-    MIN_DIST  = 0.5    # hard minimum distance between drones (m)
-    SAFE_DIST = 0.95   # repulsion activation distance (m) — must be > MIN_DIST
-    K_REP     = 0.55   # APF repulsion gain
+    CONSENSUS_THRESH = 0.5   # max pairwise dist to exit consensus (m)
+    INVERSE_THRESH   = 1.3   # min pairwise dist to exit inverse consensus (m)
 
-    # Pentagon angles for 5 drones
+    MIN_DIST  = 0.5
+    SAFE_DIST = 0.95
+    K_REP     = 0.55
+
+    ARENA_X     = 2.5    # arena half-width in X (m)
+    ARENA_Y     = 4.5    # arena half-width in Y (m)
+    WALL_MARGIN = 0.8    # wall repulsion activation distance (m)
+    K_WALL      = 0.8    # wall repulsion gain
+
+    CMD_RATE = 0.5   # minimum interval between Z command updates (s)
+
+    K_FORM = 0.5
+    K_ABS  = 0.35
+
+    kp_xy  = 1.2;  kd_xy = 0.20
+    kp_z   = 1.2;  kd_z  = 0.18
+    deriv_tau   = 0.35
+    max_vxy_cmd = 0.55
+    max_vz_cmd  = 0.50
+
+    # ============================================================
+    # Formation targets
+    # ============================================================
     penta_angles = [k * 2.0 * math.pi / 5 for k in range(5)]
 
-    # Phase 1 — horizontal pentagon targets
+    # Horizontal pentagon at z_hover (phase 1 rotation reference)
     penta_targets = [
         (PENTA_R * math.cos(penta_angles[k]),
          PENTA_R * math.sin(penta_angles[k]),
@@ -86,57 +107,51 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         for k in range(5)
     ]
 
-    # Phase 5 & 9 — Y-axis line targets (x=0, z=z_hover), spacing = LINE_Y_SPACING
-    y_line_targets = [
-        (0.0, (-2 + k) * LINE_Y_SPACING, z_hover)
-        for k in range(5)
-    ]
-
-    # Phase 6 — Z shape in XZ plane (y=0), viewed from Y direction
-    #   0---1          top bar   (top-left, top-right)
-    #      /
-    #     2            diagonal center
-    #    /
-    #   3---4          bottom bar (bottom-left, bottom-right)
-    z_shape_targets = [
-        (-Z_HALF_W, 0.0, Z_Z_TOP),                       # 0 top-left
-        ( Z_HALF_W, 0.0, Z_Z_TOP),                       # 1 top-right
-        ( 0.0,      0.0, (Z_Z_TOP + Z_Z_BOT) / 2.0),    # 2 diagonal center
-        (-Z_HALF_W, 0.0, Z_Z_BOT),                       # 3 bottom-left
-        ( Z_HALF_W, 0.0, Z_Z_BOT),                       # 4 bottom-right
-    ]
-
-    # Phase 7 — vertical pentagon in XZ plane (y=0), center raised by VERT_Z_OFFSET
+    # Vertical pentagon: all at y=0, heights derived from VERT_Z_MAX / VERT_Z_MIN
     vert_targets = [
         (VERT_R * math.cos(penta_angles[k]),
          0.0,
-         z_hover + VERT_Z_OFFSET + VERT_R * math.sin(penta_angles[k]))
+         z_center + VERT_R * math.sin(penta_angles[k]))
         for k in range(5)
     ]
 
-    # PD gains
-    kp_xy  = 1.2
-    kd_xy  = 0.20
-    kp_z   = 1.2
-    kd_z   = 0.18
-    deriv_tau    = 0.35   # low-pass filter time constant for derivative
-    max_vxy_cmd  = 0.55
-    max_vz_cmd   = 0.50
+    # Split positions — drones 0,1,2 → side A (y=+Y_SPLIT); 3,4 → side B (y=-Y_SPLIT)
+    split_positions = [
+        (-SPLIT_X,        +Y_SPLIT, z_hover),
+        ( 0.0,            +Y_SPLIT, z_hover),
+        (+SPLIT_X,        +Y_SPLIT, z_hover),
+        (-SPLIT_X / 2.0,  -Y_SPLIT, z_hover),
+        (+SPLIT_X / 2.0,  -Y_SPLIT, z_hover),
+    ]
+
+    # Rise targets: same XY as split, Z = individual vertical-pentagon height
+    rise_targets = [
+        (split_positions[k][0], split_positions[k][1], vert_targets[k][2])
+        for k in range(5)
+    ]
+
+    # Center-line targets (phase 10)
+    line_targets = [
+        (0.0, (-2 + k) * LINE_Y_SPACING, z_hover)
+        for k in range(5)
+    ]
 
     # ============================================================
     # Persistent state — initialised once for the whole simulation
     # ============================================================
     if not hasattr(cf2_control_fn, "initialized"):
-        cf2_control_fn.initialized       = True
-        cf2_control_fn.show_phase        = 0
-        cf2_control_fn.phase_start_clock = clock
-        cf2_control_fn.mission_state     = {k: 0           for k in range(1, 6)}
-        cf2_control_fn.prev_error        = {k: np.zeros(3) for k in range(1, 6)}
-        cf2_control_fn.filt_deriv        = {k: np.zeros(3) for k in range(1, 6)}
-        cf2_control_fn.prev_clock        = {k: clock       for k in range(1, 6)}
-        cf2_control_fn.last_phase_seen   = {k: 0           for k in range(1, 6)}
+        cf2_control_fn.initialized        = True
+        cf2_control_fn.show_phase         = 0
+        cf2_control_fn.phase_start_clock  = clock
+        cf2_control_fn.mission_state      = {k: 0           for k in range(1, 6)}
+        cf2_control_fn.prev_error         = {k: np.zeros(3) for k in range(1, 6)}
+        cf2_control_fn.filt_deriv         = {k: np.zeros(3) for k in range(1, 6)}
+        cf2_control_fn.prev_clock         = {k: clock       for k in range(1, 6)}
+        cf2_control_fn.last_phase_seen    = {k: 0           for k in range(1, 6)}
         cf2_control_fn.y_assignment       = list(range(5))
         cf2_control_fn.y_assignment_phase = -1
+        cf2_control_fn.last_z_clock       = {k: -999.0      for k in range(1, 6)}
+        cf2_control_fn.last_z_dist        = {k: z_hover     for k in range(1, 6)}
 
     # ============================================================
     # Default outputs
@@ -146,105 +161,86 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     led = (0, 0, 0)
 
     # ============================================================
-    # Helper — PD controller with low-pass filtered derivative
+    # PD helpers
     # ============================================================
-    def pd_control(target):
-        pos = np.array([robotPose[0], robotPose[1], robotPose[2]])
-        err = np.array(target, dtype=float) - pos
-
-        dt = clock - cf2_control_fn.prev_clock[robotNo]
-        if dt < 1e-6:
-            dt = 0.05
-
+    def _pd_update(err3):
+        dt = max(clock - cf2_control_fn.prev_clock[robotNo], 1e-6)
         if cf2_control_fn.last_phase_seen[robotNo] != cf2_control_fn.show_phase:
-            cf2_control_fn.prev_error[robotNo]      = err.copy()
+            cf2_control_fn.prev_error[robotNo]      = err3.copy()
             cf2_control_fn.filt_deriv[robotNo]      = np.zeros(3)
             cf2_control_fn.last_phase_seen[robotNo] = cf2_control_fn.show_phase
-
-        raw_d = (err - cf2_control_fn.prev_error[robotNo]) / dt
+        raw_d = (err3 - cf2_control_fn.prev_error[robotNo]) / dt
         alpha = deriv_tau / (deriv_tau + dt)
-        d     = alpha * cf2_control_fn.filt_deriv[robotNo] + (1.0 - alpha) * raw_d
-
-        cf2_control_fn.prev_error[robotNo] = err.copy()
+        d = alpha * cf2_control_fn.filt_deriv[robotNo] + (1.0 - alpha) * raw_d
+        cf2_control_fn.prev_error[robotNo] = err3.copy()
         cf2_control_fn.filt_deriv[robotNo] = d.copy()
         cf2_control_fn.prev_clock[robotNo] = clock
+        return d
 
-        def sat(v, lim): return max(-lim, min(lim, v))
+    def sat(v, lim): return max(-lim, min(lim, v))
 
+    def pd_control(target):
+        err = np.array(target, dtype=float) - np.array([robotPose[0], robotPose[1], robotPose[2]])
+        d   = _pd_update(err)
         vx_c = sat(kp_xy * err[0] + kd_xy * d[0], max_vxy_cmd)
         vy_c = sat(kp_xy * err[1] + kd_xy * d[1], max_vxy_cmd)
         vz_c = sat(kp_z  * err[2] + kd_z  * d[2], max_vz_cmd)
-
-        z_c = max(0.1, min(2.5, robotPose[2] + vz_c))
+        z_c  = max(0.1, min(2.8, robotPose[2] + vz_c))
         return vx_c, vy_c, z_c
 
-    # ============================================================
-    # Helper — Displacement-Based Formation Control (Q2.6 style)
-    # u_i = K_FORM * Σ_{j≠i} [(p_j-p_i) - (t_j-t_i)]  ← shape term
-    #      + K_ABS  * (t_i - p_i)                        ← centroid anchor
-    # ============================================================
-    def displacement_control(targets):
-        vx_c = vy_c = vz_c = 0.0
-        for j in range(nbCF2):
-            if j == i:
-                continue
-            dx = (cf2_poses[0,j] - robotPose[0]) - (targets[j][0] - targets[i][0])
-            dy = (cf2_poses[1,j] - robotPose[1]) - (targets[j][1] - targets[i][1])
-            dz = (cf2_poses[2,j] - robotPose[2]) - (targets[j][2] - targets[i][2])
-            vx_c += K_FORM * dx
-            vy_c += K_FORM * dy
-            vz_c += K_FORM * dz
-        vx_c += K_ABS * (targets[i][0] - robotPose[0])
-        vy_c += K_ABS * (targets[i][1] - robotPose[1])
-        vz_c += K_ABS * (targets[i][2] - robotPose[2])
-
-        def sat(v, lim): return max(-lim, min(lim, v))
-        vx_c = sat(vx_c, max_vxy_cmd)
-        vy_c = sat(vy_c, max_vxy_cmd)
-        vz_c = sat(vz_c, max_vz_cmd)
-        z_c  = max(0.1, min(2.5, robotPose[2] + vz_c))
-        return vx_c, vy_c, z_c
+    def pd_control_xy(tx, ty):
+        err = np.array([tx - robotPose[0], ty - robotPose[1], 0.0])
+        d   = _pd_update(err)
+        vx_c = sat(kp_xy * err[0] + kd_xy * d[0], max_vxy_cmd)
+        vy_c = sat(kp_xy * err[1] + kd_xy * d[1], max_vxy_cmd)
+        return vx_c, vy_c
 
     # ============================================================
-    # Helpers — fleet-wide checks (reads cf2_poses snapshot)
+    # Fleet-wide checks (read cf2_poses snapshot)
     # ============================================================
     def all_above_threshold():
         return all(cf2_poses[2, k] >= z_takeoff_threshold for k in range(nbCF2))
 
     def all_at(targets):
         for k in range(nbCF2):
-            tx, ty, tz = targets[k]
-            if math.sqrt((cf2_poses[0,k]-tx)**2 +
-                         (cf2_poses[1,k]-ty)**2 +
-                         (cf2_poses[2,k]-tz)**2) > ARRIVAL_TOL:
+            if math.sqrt((cf2_poses[0,k]-targets[k][0])**2 +
+                         (cf2_poses[1,k]-targets[k][1])**2 +
+                         (cf2_poses[2,k]-targets[k][2])**2) > ARRIVAL_TOL:
+                return False
+        return True
+
+    def all_at_z(targets):
+        return all(abs(cf2_poses[2, k] - targets[k][2]) <= ARRIVAL_TOL_Z
+                   for k in range(nbCF2))
+
+    def all_at_xy(targets):
+        for k in range(nbCF2):
+            if math.sqrt((cf2_poses[0,k]-targets[k][0])**2 +
+                         (cf2_poses[1,k]-targets[k][1])**2) > ARRIVAL_TOL:
                 return False
         return True
 
     def max_dist_cf2():
-        max_d = 0.0
+        d = 0.0
         for a in range(nbCF2):
             for b in range(a + 1, nbCF2):
-                d = math.sqrt((cf2_poses[0,a]-cf2_poses[0,b])**2 +
-                              (cf2_poses[1,a]-cf2_poses[1,b])**2 +
-                              (cf2_poses[2,a]-cf2_poses[2,b])**2)
-                if d > max_d:
-                    max_d = d
-        return max_d
+                d = max(d, math.sqrt((cf2_poses[0,a]-cf2_poses[0,b])**2 +
+                                     (cf2_poses[1,a]-cf2_poses[1,b])**2 +
+                                     (cf2_poses[2,a]-cf2_poses[2,b])**2))
+        return d
 
     def min_dist_cf2():
-        min_d = math.inf
+        d = math.inf
         for a in range(nbCF2):
             for b in range(a + 1, nbCF2):
-                d = math.sqrt((cf2_poses[0,a]-cf2_poses[0,b])**2 +
-                              (cf2_poses[1,a]-cf2_poses[1,b])**2 +
-                              (cf2_poses[2,a]-cf2_poses[2,b])**2)
-                if d < min_d:
-                    min_d = d
-        return min_d
+                d = min(d, math.sqrt((cf2_poses[0,a]-cf2_poses[0,b])**2 +
+                                     (cf2_poses[1,a]-cf2_poses[1,b])**2 +
+                                     (cf2_poses[2,a]-cf2_poses[2,b])**2))
+        return d
 
     # ============================================================
-    # Helper — inter-drone repulsion (APF)
-    # Force ∝ (1/dist − 1/SAFE_DIST) → grows fast as dist → 0
+    # APF inter-drone repulsion
+    # Force grows as dist -> 0: strength = K_REP * (1/dist - 1/SAFE_DIST)
     # ============================================================
     def repulsion():
         vx_r = vy_r = vz_r = 0.0
@@ -253,7 +249,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         for k in range(nbCF2):
             if k == i:
                 continue
-            other = np.array([cf2_poses[0, k], cf2_poses[1, k], cf2_poses[2, k]])
+            other = np.array([cf2_poses[0,k], cf2_poses[1,k], cf2_poses[2,k]])
             diff  = pos - other
             dist  = np.linalg.norm(diff)
             min_d = min(min_d, dist)
@@ -265,51 +261,56 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
                 vz_r += strength * unit[2]
         return vx_r, vy_r, vz_r, min_d
 
-    def change_phase(new_phase):
-        cf2_control_fn.show_phase        = new_phase
+    def wall_repulsion():
+        """APF-style repulsion from arena boundaries — keeps drones inside the voliere."""
+        vx_w = vy_w = 0.0
+        x, y = robotPose[0], robotPose[1]
+        d_xn = x - (-ARENA_X);  d_xp = ARENA_X - x   # dist to left / right wall
+        d_yn = y - (-ARENA_Y);  d_yp = ARENA_Y - y   # dist to bottom / top wall
+        for d, sign, acc in [(d_xn, +1, 'x'), (d_xp, -1, 'x'),
+                             (d_yn, +1, 'y'), (d_yp, -1, 'y')]:
+            d = max(d, 1e-3)
+            if d < WALL_MARGIN:
+                f = sign * K_WALL * (1.0 / d - 1.0 / WALL_MARGIN)
+                if acc == 'x': vx_w += f
+                else:          vy_w += f
+        return vx_w, vy_w
+
+    def change_phase(p):
+        cf2_control_fn.show_phase        = p
         cf2_control_fn.phase_start_clock = clock
 
     # ============================================================
-    # Y-line target assignment — computed once when entering phase 5 or 9.
-    # Drones sorted by y-position → no path crossings.
+    # Y-line assignment — computed once when entering phase 10.
+    # Sort drones by y-position to avoid path crossings.
     # ============================================================
-    if cf2_control_fn.show_phase in (5, 9) and \
-            cf2_control_fn.y_assignment_phase != cf2_control_fn.show_phase:
+    if cf2_control_fn.show_phase == 10 and cf2_control_fn.y_assignment_phase != 10:
         y_vals = [cf2_poses[1, k] for k in range(nbCF2)]
         order  = sorted(range(nbCF2), key=lambda k: y_vals[k])
         asgn   = [0] * nbCF2
         for rank, dk in enumerate(order):
             asgn[dk] = rank
         cf2_control_fn.y_assignment       = asgn
-        cf2_control_fn.y_assignment_phase = cf2_control_fn.show_phase
-    y_assigned = [y_line_targets[cf2_control_fn.y_assignment[k]] for k in range(nbCF2)]
+        cf2_control_fn.y_assignment_phase = 10
+    line_assigned = [line_targets[cf2_control_fn.y_assignment[k]] for k in range(5)]
 
     # ============================================================
-    # Phase transitions
+    # Phase transitions (evaluated every call)
     # ============================================================
     phase = cf2_control_fn.show_phase
     t     = clock - cf2_control_fn.phase_start_clock
 
-    if   phase == 0 and all_above_threshold():
-        change_phase(1)
-    elif phase == 1 and (all_at(penta_targets) or t >= FORMATION_TIMEOUT):
-        change_phase(2)
-    elif phase == 2 and t >= ROTATION_DURATION:
-        change_phase(3)
-    elif phase == 3 and (max_dist_cf2() < CONSENSUS_THRESH or t >= CONSENSUS_TIMEOUT):
-        change_phase(4)
-    elif phase == 4 and (min_dist_cf2() > INVERSE_THRESH or t >= INVERSE_TIMEOUT):
-        change_phase(5)
-    elif phase == 5 and (all_at(y_assigned) or t >= FORMATION_TIMEOUT):
-        change_phase(6)
-    elif phase == 6 and (all_at(z_shape_targets) or t >= FORMATION_TIMEOUT):
-        change_phase(7)
-    elif phase == 7 and (all_at(vert_targets) or t >= FORMATION_TIMEOUT):
-        change_phase(8)
-    elif phase == 8 and t >= ROTATION_DURATION:
-        change_phase(9)
-    elif phase == 9 and (all_at(y_assigned) or t >= FORMATION_TIMEOUT):
-        change_phase(10)
+    if   phase == 0  and all_above_threshold():                                     change_phase(1)
+    elif phase == 1  and t >= T_ROTATE:                                             change_phase(2)
+    elif phase == 2  and (max_dist_cf2() < CONSENSUS_THRESH or t >= T_CONSENSUS):  change_phase(3)
+    elif phase == 3  and (min_dist_cf2() > INVERSE_THRESH   or t >= T_INVERSE):    change_phase(4)
+    elif phase == 4  and (all_at(split_positions) or t >= T_FORMATION):            change_phase(5)
+    elif phase == 5  and (all_at_z(rise_targets)  or t >= T_FORMATION):            change_phase(6)
+    elif phase == 6  and (all_at_xy(vert_targets) or t >= T_FORMATION):            change_phase(7)
+    elif phase == 7  and t >= T_ROTATE:                                             change_phase(8)
+    elif phase == 8  and (all_at_xy(split_positions) or t >= T_FORMATION):         change_phase(9)
+    elif phase == 9  and (all_at_z(split_positions)  or t >= T_FORMATION):         change_phase(10)
+    elif phase == 10 and (all_at(line_assigned) or t >= T_FORMATION):              change_phase(11)
 
     # Refresh after possible transition
     phase = cf2_control_fn.show_phase
@@ -319,131 +320,152 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # Phase 0 — takeoff
     # ============================================================
     if phase == 0:
-        z_dist = z_hover
         led    = (0, 0, 255)
+        z_dist = z_hover
+        vx, vy = 0.0, 0.0
         if cf2_control_fn.mission_state[robotNo] == 0:
             if clock >= Time2Takeoff:
                 trigger_takeoff = True
             if robotPose[2] >= z_takeoff_threshold:
                 cf2_control_fn.mission_state[robotNo] = 1
-        vx, vy = 0.0, 0.0
 
     # ============================================================
-    # Phase 1 — form horizontal pentagon
+    # Phase 1 — full 360 rotation of the horizontal pentagon
+    # Drones already start at pentagon positions, so no forming step needed.
     # ============================================================
     elif phase == 1:
-        vx, vy, z_dist = displacement_control(penta_targets)
-        led = (255, 100, 0)
-
-    # ============================================================
-    # Phase 2 — one full rotation of the pentagon
-    # ============================================================
-    elif phase == 2:
-        angle = penta_angles[i] + 2.0 * math.pi * t / ROTATION_DURATION
-        vx, vy, z_dist = pd_control((
-            PENTA_R * math.cos(angle),
-            PENTA_R * math.sin(angle),
-            z_hover))
+        angle  = penta_angles[i] + 2.0 * math.pi * t / T_ROTATE
+        vx, vy, z_dist = pd_control((PENTA_R * math.cos(angle),
+                                      PENTA_R * math.sin(angle),
+                                      z_hover))
         led = (255, 165, 0)
 
     # ============================================================
-    # Phase 3 — partial consensus (convergence)
+    # Phase 2 — partial consensus (convergence)
     # Each drone navigates toward drone (i+1) on the directed ring.
-    # All drones converge toward a common point.
     # ============================================================
-    elif phase == 3:
+    elif phase == 2:
         next_idx = (i + 1) % nbCF2
-        target   = (cf2_poses[0, next_idx], cf2_poses[1, next_idx], z_hover)
-        vx, vy, z_dist = pd_control(target)
+        vx, vy, z_dist = pd_control((cf2_poses[0, next_idx],
+                                      cf2_poses[1, next_idx],
+                                      z_hover))
         led = (255, 0, 255)
 
     # ============================================================
-    # Phase 4 — inverse consensus (divergence)
-    # Each drone moves away from drone (i+1) on the same ring.
-    # All drones spread out from the center.
+    # Phase 3 — inverse consensus (divergence)
+    # Each drone moves away from drone (i+1) with bounded velocity.
     # ============================================================
-    elif phase == 4:
+    elif phase == 3:
         next_idx = (i + 1) % nbCF2
-        dx = robotPose[0] - cf2_poses[0, next_idx]
-        dy = robotPose[1] - cf2_poses[1, next_idx]
+        dx   = robotPose[0] - cf2_poses[0, next_idx]
+        dy   = robotPose[1] - cf2_poses[1, next_idx]
         dist = math.sqrt(dx**2 + dy**2) + 1e-6
-        speed = 0.3
-        vx = speed * dx / dist
-        vy = speed * dy / dist
+        vx, vy = 0.3 * dx / dist, 0.3 * dy / dist
         z_dist = z_hover
         led = (255, 255, 0)
 
     # ============================================================
-    # Phase 5 — straight line on Y axis
+    # Phase 4 — split: 3 drones to side A, 2 to side B (full 3-D PD)
+    # ============================================================
+    elif phase == 4:
+        vx, vy, z_dist = pd_control(split_positions[i])
+        led = (0, 220, 80)
+
+    # ============================================================
+    # Phase 5 — rise to individual vertical-pentagon heights (Z only)
+    # vx = vy = 0; only a single altitude command is sent per CMD_RATE.
     # ============================================================
     elif phase == 5:
-        vx, vy, z_dist = pd_control(y_assigned[i])
-        led = (255, 60, 60)
-
-    # ============================================================
-    # Phase 6 — Z shape in XZ plane (viewed from Y direction)
-    # ============================================================
-    elif phase == 6:
-        vx, vy, z_dist = pd_control(z_shape_targets[i])
-        led = (60, 220, 60)
-
-    # ============================================================
-    # Phase 7 — vertical pentagon in XZ plane
-    # ============================================================
-    elif phase == 7:
-        vx, vy, z_dist = displacement_control(vert_targets)
+        vx, vy = 0.0, 0.0
+        z_dist  = rise_targets[i][2]
         led = (0, 180, 255)
 
     # ============================================================
-    # Phase 8 — vertical pentagon rotating around Z axis (one full turn)
-    # x = VERT_R*cos(θ_i)*cos(φ),  y = VERT_R*cos(θ_i)*sin(φ),  z = z_hover + VERT_Z_OFFSET + VERT_R*sin(θ_i)
+    # Phase 6 — move to XY positions of vertical pentagon (XY only)
+    # Z stays fixed at the height reached in phase 5.
     # ============================================================
-    elif phase == 8:
-        phi    = 2.0 * math.pi * t / ROTATION_DURATION
-        tx     = VERT_R * math.cos(penta_angles[i]) * math.cos(phi)
-        ty     = VERT_R * math.cos(penta_angles[i]) * math.sin(phi)
-        tz     = z_hover + VERT_Z_OFFSET + VERT_R * math.sin(penta_angles[i])
-        vx, vy, z_dist = pd_control((tx, ty, tz))
+    elif phase == 6:
+        vx, vy = pd_control_xy(vert_targets[i][0], vert_targets[i][1])
+        z_dist  = vert_targets[i][2]
+        led = (0, 100, 255)
+
+    # ============================================================
+    # Phase 7 — vertical pentagon rotates one full 360 turn (Z fixed)
+    # x = VERT_R*cos(theta_i)*cos(phi),  y = VERT_R*cos(theta_i)*sin(phi)
+    # z stays at vert_targets[i][2] — never updated.
+    # ============================================================
+    elif phase == 7:
+        phi    = 2.0 * math.pi * t / T_ROTATE
+        vx, vy = pd_control_xy(VERT_R * math.cos(penta_angles[i]) * math.cos(phi),
+                                VERT_R * math.cos(penta_angles[i]) * math.sin(phi))
+        z_dist  = vert_targets[i][2]
         led = (160, 0, 255)
 
     # ============================================================
-    # Phase 9 — straight line on Y axis (again)
+    # Phase 8 — split back to XY of split positions (XY only, Z fixed)
     # ============================================================
-    elif phase == 9:
-        vx, vy, z_dist = pd_control(y_assigned[i])
+    elif phase == 8:
+        vx, vy = pd_control_xy(split_positions[i][0], split_positions[i][1])
+        z_dist  = vert_targets[i][2]
         led = (255, 255, 60)
 
     # ============================================================
-    # Phase 10 — individual landing
+    # Phase 9 — descend to z_hover (Z only, XY fixed at split positions)
+    # ============================================================
+    elif phase == 9:
+        vx, vy = 0.0, 0.0
+        z_dist  = z_hover
+        led = (255, 120, 0)
+
+    # ============================================================
+    # Phase 10 — form center line at z_hover
     # ============================================================
     elif phase == 10:
+        vx, vy, z_dist = pd_control(line_assigned[i])
+        led = (255, 60, 60)
+
+    # ============================================================
+    # Phase 11 — land
+    # ============================================================
+    elif phase == 11:
         vx, vy  = 0.0, 0.0
         z_dist  = 0.0
         trigger_land = True
         led = (0, 255, 0)
-        cf2_control_fn.mission_state[robotNo] = 2
         if robotPose[2] < 0.15:
             cf2_control_fn.mission_state[robotNo] = 3
 
-    # ============================================================
-    # Safety stop
-    # ============================================================
     else:
         vx, vy  = 0.0, 0.0
         z_dist  = 0.0
         led = (0, 255, 0)
 
     # ============================================================
-    # Inter-drone collision avoidance — applied to every phase
-    #   alpha = 1  →  full navigation  (dist >= SAFE_DIST)
-    #   alpha = 0  →  navigation off   (dist <= MIN_DIST)
+    # APF repulsion — applied every phase
+    # During XY-only phases (6,7,8): Z component of APF is suppressed
+    # so the commanded height is never disturbed.
+    # alpha = 1 → full navigation (dist >= SAFE_DIST)
+    # alpha = 0 → navigation off  (dist <= MIN_DIST)
     # ============================================================
     if not trigger_land:
         vx_r, vy_r, vz_r, min_d = repulsion()
+        vx_w, vy_w = wall_repulsion()
         alpha  = max(0.0, min(1.0, (min_d - MIN_DIST) / (SAFE_DIST - MIN_DIST)))
-        vx     = alpha * vx + vx_r
-        vy     = alpha * vy + vy_r
-        z_dist = max(0.1, min(2.5, z_dist + vz_r))
+        vx     = alpha * vx + vx_r + vx_w
+        vy     = alpha * vy + vy_r + vy_w
+        if phase not in (6, 7, 8):
+            z_dist = max(0.1, min(2.8, z_dist + vz_r))
+
+    # ============================================================
+    # Z command rate limiting — send new altitude at most every CMD_RATE s.
+    # vx / vy are always fresh (updated every call for smooth motion).
+    # ============================================================
+    if not trigger_land:
+        if clock - cf2_control_fn.last_z_clock[robotNo] >= CMD_RATE:
+            cf2_control_fn.last_z_clock[robotNo] = clock
+            cf2_control_fn.last_z_dist[robotNo]  = z_dist
+        else:
+            z_dist = cf2_control_fn.last_z_dist[robotNo]
 
     return vx, vy, z_dist, trigger_takeoff, trigger_land, led
 
