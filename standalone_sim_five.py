@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from concurrent.futures import ThreadPoolExecutor
-import tp_algos
+import scenarios/five_drones_cf2/tp_algos.py as tp_algos
 
 # ==========================================
 # 1. SIMULATION INPUTS & CONFIGURATION
