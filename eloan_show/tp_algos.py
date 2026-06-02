@@ -1,72 +1,3 @@
-#!/usr/bin/python3
-'''
-    CentraleSupelec TP 2A/3A
-    Aarsh THAKKER,2025
-    (all variables in SI unit)
-
-###########################################################################################
-
-============================ READ THIS BEFORE STARTING TO CODE ============================
-
-    You ONLY modify the part that is marked << TO BE MODIFIED >> in the functions
-    YOU MUST NOT MODIFY THE NAME OF THE FILE OR THE NAME OF THE FUNCTIONS OR THE INPUT/OUTPUT OF THE FUNCTIONS
-    FOR THE SUBMISSION, ONLY THE CODE INSIDE THE FUNCTION (MARKED << TO BE MODIFIED >>) WILL BE CONSIDERED FOR EVALUATION
-    variables used by the functions of this script
-        - robotNo: Current robot number in the fleet of same type of robots
-        - robotPose: current position of the robot (x,y,z, ... depending on the robot)
-        - nbTB3B: number of total tb3-Burger robots in the fleet (>=0)
-        - nbTB3W: number of total tb3-Waffle robots in the fleet (>=0)
-        - nbRMTT: number of total dji robomaster TT drones in the fleet (>=0)
-        - nbCF2: number of total crazyflie 2 drones in the fleet (>=0)
-        - nbRMEP: number of total dji robomaster EP in the fleet (>=0)  
-        - nbOBSTACLE: number of total obstacle positions in the environment (>=0)
-        
-        - tb3B_poses:  size (3 x nbTB3B) 
-            eg. of use: for robot number 'robotNo', position of the robot can be obtained by: 
-            tb3B_poses[:,robotNo-1]   (indexes in Python start from 0 !)
-            tb3B_poses[0,robotNo-1]: x-coordinate of robot position (in m)
-            tb3B_poses[1,robotNo-1]: y-coordinate of robot position (in m)
-            tb3B_poses[2,robotNo-1]: orientation angle of robot (in rad)
-            
-        - tb3W_poses:  size (3 x nbTB3W) 
-            tb3W_poses[0,robotNo-1]: x-coordinate of robot position (in m)
-            tb3W_poses[1,robotNo-1]: y-coordinate of robot position (in m)
-            tb3W_poses[2,robotNo-1]: orientation angle of robot (in rad)
-
-        - rmtt_poses:  size (3 x nbRMTT) 
-            rmtt_poses[0,robotNo-1]: x-coordinate of robot position (in m)
-            rmtt_poses[1,robotNo-1]: y-coordinate of robot position (in m)
-            rmtt_poses[2,robotNo-1]: z-coordinate of robot position (in m)
-            rmtt_poses[3,robotNo-1]: orientation angle of robot (in rad) (Ask Supervisor if needed)
-            
-        - cf2_poses:  size (3 x nbCF2) 
-            cf2_poses[0,robotNo-1]: x-coordinate of robot position (in m)
-            cf2_poses[1,robotNo-1]: y-coordinate of robot position (in m)
-            cf2_poses[2,robotNo-1]: z-coordinate of robot position (in m)
-
-        - rmep_poses:  size (3 x nbRMEP) 
-            rmep_poses[0,robotNo-1]: x-coordinate of robot position (in m)
-            rmep_poses[1,robotNo-1]: y-coordinate of robot position (in m)
-            rmep_poses[2,robotNo-1]: orientation angle of robot (in rad)
-            rmep_poses[2,robotNo-1]: orientation angle of robot (in rad)
-
-        - obstacle_pose:  size (3 x nbOBSTACLE)  
-            obstacle_pose[0,nbOBSTACLE-1]: x-coordinate of center position of obstacle (in m)
-            obstacle_pose[1,nbOBSTACLE-1]: y-coordinate of center position of obstacle (in m)
-            obstacle_pose[2,nbOBSTACLE-1]: z-coordinate of center position of obstacle (in m)
-        
-        - obstacle_size: size (3 x nbOBSTACLE)
-            obstacle_size[0,nbOBSTACLE-1]: size of the obstacle in x (in m)
-            obstacle_size[1,nbOBSTACLE-1]: size of the obstacle in y (in m)
-            obstacle_size[2,nbOBSTACLE-1]: size of the obstacle in z (in m)
-
-    In case of doubt related to the robots, this code or may be something else,
-    open a discussion at https://tp-cs.talkyard.net/
-    Use your own GitHub account or CS email to signup.
-###########################################################################################
-
-'''
-
 import random
 import numpy as np
 import math, time
@@ -74,8 +5,6 @@ import math, time
 # ==============   "GLOBAL" VARIABLES KNOWN BY ALL THE FUNCTIONS ===================
 # all variables declared here will be known by functions below
 # use keyword "global" inside a function if the variable needs to be modified by the function
-
-
 
 global TAKEOFF_DONE, Time2Takeoff
 TAKEOFF_DONE = False
@@ -149,7 +78,7 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
 # ====================================
 # Control function for Crazyflie 2 drones
 # should ONLY return (vx,vy,z_dist) for the robot command
-# max useable numbers of drones = 3
+# max useable numbers of drones = 6
 # ====================================
 def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_poses, rmep_poses, obstacle_pose, obstacle_size, clock):
     global TAKEOFF_DONE, Time2Takeoff
@@ -174,30 +103,36 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # ============================================================
     # Parameters of the show
     # ============================================================
-    z_hover = 1.0
-    z_takeoff_threshold = 0.9 * z_hover
-    # Initial positions
+    z_1 = 0.80
+    z_2 = 1.20
+    z_3 = 1.60
+    altitude_targets = np.array([z_1, z_1, z_2, z_2, z_3, z_3])
+    z_takeoff_threshold_ratio = 0.9
+
+    # The two drones of each layer are opposite ends of one spoke.
+    # Viewed from above, all six starting locations make a wide hexagon.
+    safe_radius = 1.20
+    base_angles = np.array([
+        0.0, math.pi,
+        math.pi / 3.0, 4.0 * math.pi / 3.0,
+        2.0 * math.pi / 3.0, 5.0 * math.pi / 3.0
+    ])
     initial_positions = np.array([
-        [1.0, 0.0, 0.0],
-        [-0.5, math.sqrt(3) / 2, 0.0],
-        [-0.5, -math.sqrt(3) / 2, 0.0]
+        [
+            safe_radius * math.cos(angle),
+            safe_radius * math.sin(angle),
+            altitude_targets[k]
+        ]
+        for k, angle in enumerate(base_angles)
     ])
 
-    # Circle used in phase 1
-    circle_center = np.array([0.0, 0.0])
-    circle_radius = 1.0
-
     # Durations of the show phases
-    rotation_duration = 12.0
-    consensus_duration_max = 10.0
-    inverse_consensus_duration = 6.0
-    formation_no_rotation_duration = 14.0
-    formation_rotation_duration = 14.0
+    carousel_duration = 14.0
+    bloom_duration = 14.0
+    weave_duration = 14.0
+    crown_duration = 16.0
+    finale_duration = 14.0
     return_duration_max = 12.0
-
-    # Barycenter trajectory used in phases 4 and 5
-    barycenter_radius = 0.55
-    barycenter_omega = 2.0 * math.pi / formation_no_rotation_duration
 
     # PD gains
     kp_xy = 0.65
@@ -215,8 +150,6 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
     # Tolerances
     return_tolerance = 0.12
-    consensus_distance_threshold = 0.85
-    inverse_consensus_distance_threshold = 1.35
 
     # ============================================================
     # Persistent variables
@@ -236,11 +169,11 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
         # Common show phase:
         # 0 = takeoff
-        # 1 = rotation
-        # 2 = partial consensus
-        # 3 = inverse consensus
-        # 4 = triangle formation without rotation
-        # 5 = triangle formation with rotation
+        # 1 = layered carousel
+        # 2 = blooming star
+        # 3 = ribbon weave
+        # 4 = travelling crown
+        # 5 = double-spin finale
         # 6 = return to initial positions
         # 7 = landing
         # 8 = finished
@@ -261,6 +194,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
     # Current indices
     i = robotNo - 1
+    pair_index = i // 2
 
     # ========================================================
     # Helper functions
@@ -276,25 +210,6 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         if value < -limit:
             return -limit
         return value
-
-    def blend_color(color_a, color_b, amount):
-        amount = max(0.0, min(1.0, amount))
-        return tuple(
-            int(color_a[channel] + amount * (color_b[channel] - color_a[channel]))
-            for channel in range(3)
-        )
-
-    def pulse_color(color_a, color_b, speed, phase_shift=0.0):
-        amount = 0.5 + 0.5 * math.sin(speed * clock + phase_shift)
-        return blend_color(color_a, color_b, amount)
-
-    def rainbow_color(speed, phase_shift=0.0):
-        angle = speed * clock + phase_shift
-        return (
-            int(127.5 + 127.5 * math.sin(angle)),
-            int(127.5 + 127.5 * math.sin(angle + 2.0 * math.pi / 3.0)),
-            int(127.5 + 127.5 * math.sin(angle + 4.0 * math.pi / 3.0))
-        )
 
     def pd_position_control(target_position):
         """
@@ -341,41 +256,27 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
         return vx_cmd, vy_cmd, z_cmd
 
-    def max_distance_between_cf2():
-        max_dist = 0.0
-        for a in range(nbCF2):
-            for b in range(a + 1, nbCF2):
-                dx = cf2_poses[0, a] - cf2_poses[0, b]
-                dy = cf2_poses[1, a] - cf2_poses[1, b]
-                dz = cf2_poses[2, a] - cf2_poses[2, b]
-                dist = math.sqrt(dx**2 + dy**2 + dz**2)
-                if dist > max_dist:
-                    max_dist = dist
-        return max_dist
-    
-    def min_distance_between_cf2():
-        min_dist = math.inf
-        for a in range(nbCF2):
-            for b in range(a + 1, nbCF2):
-                dx = cf2_poses[0, a] - cf2_poses[0, b]
-                dy = cf2_poses[1, a] - cf2_poses[1, b]
-                dz = cf2_poses[2, a] - cf2_poses[2, b]
-                dist = math.sqrt(dx**2 + dy**2 + dz**2)
-                if dist < min_dist:
-                    min_dist = dist
-        return min_dist
+    def layered_target(radius, angle_offset, center_xy=None):
+        if center_xy is None:
+            center_xy = np.zeros(2)
+        angle = base_angles[i] + angle_offset
+        return np.array([
+            center_xy[0] + radius * math.cos(angle),
+            center_xy[1] + radius * math.sin(angle),
+            altitude_targets[i]
+        ])
 
     def all_drones_above_takeoff_threshold():
         for a in range(nbCF2):
-            if cf2_poses[2, a] < z_takeoff_threshold:
+            if cf2_poses[2, a] < z_takeoff_threshold_ratio * altitude_targets[a]:
                 return False
         return True
 
     def all_drones_close_to_initial_positions():
-        for a in range(3):
+        for a in range(nbCF2):
             dx = cf2_poses[0, a] - initial_positions[a, 0]
             dy = cf2_poses[1, a] - initial_positions[a, 1]
-            dz = cf2_poses[2, a] - z_hover
+            dz = cf2_poses[2, a] - altitude_targets[a]
             dist = math.sqrt(dx**2 + dy**2 + dz**2)
             if dist > return_tolerance:
                 return False
@@ -393,27 +294,23 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
             change_phase(1)
 
     elif phase == 1:
-        if phase_time >= rotation_duration:
+        if phase_time >= carousel_duration:
             change_phase(2)
 
     elif phase == 2:
-        if max_distance_between_cf2() < consensus_distance_threshold:
-            change_phase(3)
-        elif phase_time >= consensus_duration_max:
+        if phase_time >= bloom_duration:
             change_phase(3)
 
     elif phase == 3:
-        if min_distance_between_cf2() > inverse_consensus_distance_threshold:
-            change_phase(4)
-        elif phase_time >= inverse_consensus_duration:
+        if phase_time >= weave_duration:
             change_phase(4)
 
     elif phase == 4:
-        if phase_time >= formation_no_rotation_duration:
+        if phase_time >= crown_duration:
             change_phase(5)
 
     elif phase == 5:
-        if phase_time >= formation_rotation_duration:
+        if phase_time >= finale_duration:
             change_phase(6)
 
     elif phase == 6:
@@ -431,131 +328,85 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     # ========================================================
 
     if phase == 0:
-        z_dist = z_hover
-        led = pulse_color((0, 0, 80), (80, 180, 255), 2.2, i * 0.7)
+        z_dist = altitude_targets[i]
+        led = (0, 0, 255)
 
         if cf2_control_fn.mission_state[robotNo] == 0:
             trigger_takeoff = True
 
-            if robotPose[2] > z_takeoff_threshold:
+            if robotPose[2] > z_takeoff_threshold_ratio * altitude_targets[i]:
                 cf2_control_fn.mission_state[robotNo] = 1
 
         vx = 0.0
         vy = 0.0
 
     # ========================================================
-    # Phase 1: rotation on a circle
+    # Phase 1: layered carousel
+    # Each altitude pair spins on opposite ends of the same wide diameter.
     # ========================================================
 
     elif phase == 1:
         cf2_control_fn.mission_state[robotNo] = 1
 
-        initial_angle = math.atan2(initial_positions[i, 1], initial_positions[i, 0])
-        angle = initial_angle + 2.0 * math.pi * phase_time / rotation_duration
-
-        target_xy = circle_center + circle_radius * np.array([
-            math.cos(angle),
-            math.sin(angle)
-        ])
-
-        target = np.array([target_xy[0], target_xy[1], z_hover])
+        turn = 2.0 * math.pi * phase_time / carousel_duration
+        target = layered_target(safe_radius, turn)
         vx, vy, z_dist = pd_position_control(target)
-        led = rainbow_color(1.1, i * 2.0 * math.pi / 3.0)
+        led = (255, 120, 0)
 
     # ========================================================
-    # Phase 2: partial consensus
-    # drone i knows drone i+1, not drone i-1
+    # Phase 2: blooming star
+    # The stacked spokes expand and contract while completing one turn.
     # ========================================================
 
     elif phase == 2:
-        next_index = (i + 1) % 3
-
-        target = np.array([
-            cf2_poses[0, next_index],
-            cf2_poses[1, next_index],
-            z_hover
-        ])
-
+        turn = 2.0 * math.pi * phase_time / bloom_duration
+        pulse = math.sin(turn) ** 2
+        radius = safe_radius + (0.16 + 0.08 * pair_index) * pulse
+        layer_twist = (pair_index - 1) * 0.10 * math.sin(2.0 * turn)
+        target = layered_target(radius, turn + layer_twist)
         vx, vy, z_dist = pd_position_control(target)
-        led = pulse_color((120, 0, 180), (255, 90, 255), 3.0, i)
+        led = (255, 0, 255)
 
     # ========================================================
-    # Phase 3: inverse partial consensus
-    # same relation, opposite sign
+    # Phase 3: ribbon weave
+    # The three separated pair axes gently fan apart and reunite.
     # ========================================================
 
     elif phase == 3:
-        next_index = (i + 1) % 3
-
-        dx = robotPose[0] - cf2_poses[0, next_index]
-        dy = robotPose[1] - cf2_poses[1, next_index]
-
-        target = np.array([
-            robotPose[0] + dx,
-            robotPose[1] + dy,
-            z_hover
-        ])
-
+        turn = 2.0 * math.pi * phase_time / weave_duration
+        layer_twist = (pair_index - 1) * 0.14 * math.sin(2.0 * turn)
+        radius = safe_radius + 0.10 * (1.0 - math.cos(turn))
+        target = layered_target(radius, turn + layer_twist)
         vx, vy, z_dist = pd_position_control(target)
-        led = pulse_color((255, 90, 0), (255, 255, 80), 2.6, i * 0.8)
+        led = (255, 255, 0)
 
     # ========================================================
-    # Phase 4: triangle formation without rotation
-    # The barycenter follows a circle, the triangle orientation is fixed.
+    # Phase 4: travelling crown
+    # The whole layered star travels in a circle without collapsing inward.
     # ========================================================
 
     elif phase == 4:
-        angle = barycenter_omega * phase_time
-
-        barycenter = np.array([
-            barycenter_radius * math.cos(angle),
-            barycenter_radius * math.sin(angle)
+        turn = 2.0 * math.pi * phase_time / crown_duration
+        center_xy = np.array([
+            0.38 * (math.cos(turn) - 1.0),
+            0.38 * math.sin(turn)
         ])
-
-        fixed_offset = np.array([
-            initial_positions[i, 0],
-            initial_positions[i, 1]
-        ])
-
-        target_xy = barycenter + fixed_offset
-        target = np.array([target_xy[0], target_xy[1], z_hover])
-
+        radius = safe_radius + 0.12 * math.sin(turn) ** 2
+        target = layered_target(radius, turn, center_xy)
         vx, vy, z_dist = pd_position_control(target)
-        led = pulse_color((0, 120, 160), (80, 255, 255), 1.8, i * 1.3)
+        led = (0, 255, 255)
 
     # ========================================================
-    # Phase 5: triangle formation with rotation
-    # The barycenter follows a circle, and the formation rotates.
+    # Phase 5: double-spin finale
+    # A bright final star pulse performs two turns before returning home.
     # ========================================================
 
     elif phase == 5:
-        angle_barycenter = barycenter_omega * phase_time
-
-        barycenter = np.array([
-            barycenter_radius * math.cos(angle_barycenter),
-            barycenter_radius * math.sin(angle_barycenter)
-        ])
-
-        formation_angle = 2.0 * math.pi * phase_time / formation_rotation_duration
-
-        c = math.cos(formation_angle)
-        s = math.sin(formation_angle)
-
-        offset = np.array([
-            initial_positions[i, 0],
-            initial_positions[i, 1]
-        ])
-
-        rotated_offset = np.array([
-            c * offset[0] - s * offset[1],
-            s * offset[0] + c * offset[1]
-        ])
-
-        target_xy = barycenter + rotated_offset
-        target = np.array([target_xy[0], target_xy[1], z_hover])
-
+        turn = 2.0 * math.pi * phase_time / finale_duration
+        radius = safe_radius + 0.26 * math.sin(turn) ** 2
+        target = layered_target(radius, 2.0 * turn)
         vx, vy, z_dist = pd_position_control(target)
-        led = rainbow_color(1.6, phase_time + i * 2.0 * math.pi / 3.0)
+        led = (0, 180, 255)
 
     # ========================================================
     # Phase 6: return to initial positions
@@ -565,11 +416,11 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         target = np.array([
             initial_positions[i, 0],
             initial_positions[i, 1],
-            z_hover
+            altitude_targets[i]
         ])
 
         vx, vy, z_dist = pd_position_control(target)
-        led = pulse_color((40, 180, 60), (200, 255, 200), 2.4, i * 0.9)
+        led = (120, 255, 120)
 
     # ========================================================
     # Phase 7: landing
@@ -580,7 +431,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         vy = 0.0
         z_dist = 0.0
         trigger_land = True
-        led = pulse_color((0, 90, 0), (120, 255, 80), 3.4, i * 0.5)
+        led = (0, 255, 0)
 
         cf2_control_fn.mission_state[robotNo] = 2
 
@@ -597,7 +448,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         z_dist = 0.0
         trigger_takeoff = False
         trigger_land = False
-        led = (0, 120, 0)
+        led = (0, 255, 0)
         cf2_control_fn.mission_state[robotNo] = 3
 
     # -----------------------

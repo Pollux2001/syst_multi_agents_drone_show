@@ -1,0 +1,475 @@
+\chapter{Problem Formulation and Theoretical Approach}
+\label{ch:theorie}
+
+This chapter presents the mathematical formulation of the three-drone show. The objective is to connect the practical implementation of the Crazyflie drones with the main concepts studied in the course: multi-agent systems, graph-based interactions, consensus behavior, formation control, reference tracking, and stability through error reduction. The three-drone case is used because it is the simplest complete example: with only three agents, it is already possible to create a closed geometric shape, apply consensus-inspired motion, and rotate a formation.
+
+\section{Multi-Agent System Model}
+
+The system is composed of three Crazyflie drones. Each drone is considered as an agent of a multi-agent system and is indexed by:
+
+\begin{equation}
+    i \in \{1,2,3\}.
+\end{equation}
+
+The position of drone $i$ in three-dimensional space is defined as:
+
+\begin{equation}
+    p_i(t)=
+    \begin{bmatrix}
+    x_i(t) \\
+    y_i(t) \\
+    z_i(t)
+    \end{bmatrix}.
+\end{equation}
+
+In the project, the low-level attitude dynamics of the drone are not modeled explicitly. Instead, the drone is treated as a point that receives horizontal velocity commands and an altitude command. Therefore, the output of the controller can be written as:
+
+\begin{equation}
+    u_i(t)=
+    \begin{bmatrix}
+    v_{x,i}(t) \\
+    v_{y,i}(t) \\
+    z_{\text{dist},i}(t)
+    \end{bmatrix},
+\end{equation}
+
+where $v_{x,i}$ and $v_{y,i}$ are the commanded horizontal velocities, and $z_{\text{dist},i}$ is the altitude command sent to the simulator. This simplified model is consistent with the objective of the course: instead of focusing on the internal dynamics of one drone, the main focus is the coordination of several agents.
+
+The initial positions are chosen as the vertices of an equilateral triangle on the ground:
+
+\begin{equation}
+    p_1(0)=
+    \begin{bmatrix}
+    1 \\
+    0 \\
+    0
+    \end{bmatrix}, \quad
+    p_2(0)=
+    \begin{bmatrix}
+    -\frac{1}{2} \\
+    \frac{\sqrt{3}}{2} \\
+    0
+    \end{bmatrix}, \quad
+    p_3(0)=
+    \begin{bmatrix}
+    -\frac{1}{2} \\
+    -\frac{\sqrt{3}}{2} \\
+    0
+    \end{bmatrix}.
+\end{equation}
+
+These positions are centered around the origin because their sum is zero:
+
+\begin{equation}
+    p_1(0)+p_2(0)+p_3(0)=0.
+\end{equation}
+
+This is useful for formation control, because the same vectors can later be used as relative offsets around a moving barycenter.
+
+\section{Reference Tracking Controller}
+
+Most phases of the show are formulated as reference tracking problems. For each drone, a desired position $p_i^{\star}(t)$ is defined. The tracking error is:
+
+\begin{equation}
+    e_i(t)=p_i^{\star}(t)-p_i(t).
+\end{equation}
+
+The implementation uses a proportional-derivative control law. The derivative of the error is approximated numerically and filtered in order to avoid abrupt changes:
+
+\begin{equation}
+    \dot{e}_i(t) \simeq \frac{e_i(t)-e_i(t-\Delta t)}{\Delta t},
+\end{equation}
+
+\begin{equation}
+    d_i(t)=\alpha d_i(t-\Delta t)+(1-\alpha)\dot{e}_i(t),
+\end{equation}
+
+with:
+
+\begin{equation}
+    \alpha=\frac{\tau}{\tau+\Delta t}.
+\end{equation}
+
+The horizontal control commands are:
+
+\begin{equation}
+    v_{x,i}=K_{p,xy}e_{x,i}+K_{d,xy}d_{x,i},
+\end{equation}
+
+\begin{equation}
+    v_{y,i}=K_{p,xy}e_{y,i}+K_{d,xy}d_{y,i}.
+\end{equation}
+
+For the vertical motion, the controller first computes a vertical correction:
+
+\begin{equation}
+    v_{z,i}=K_{p,z}e_{z,i}+K_{d,z}d_{z,i}.
+\end{equation}
+
+Since the simulator uses an altitude command, this correction is converted into:
+
+\begin{equation}
+    z_{\text{dist},i}=z_i(t)+v_{z,i}.
+\end{equation}
+
+The numerical gains used in the implementation are:
+
+\begin{equation}
+    K_{p,xy}=0.65, \quad K_{d,xy}=0.16, \quad K_{p,z}=0.8, \quad K_{d,z}=0.2.
+\end{equation}
+
+The derivative filter uses:
+
+\begin{equation}
+    \tau=0.35.
+\end{equation}
+
+The commands are saturated to keep the motion realistic:
+
+\begin{equation}
+    |v_{x,i}|\leq 0.6, \quad |v_{y,i}|\leq 0.6, \quad |v_{z,i}|\leq 0.8.
+\end{equation}
+
+From the course point of view, this is a standard feedback control structure: the command is based on the error between the current state and the desired state. The proportional term reduces the position error, while the derivative term improves damping and smoothness.
+
+\section{Takeoff Phase}
+
+The first phase is takeoff. The target altitude is:
+
+\begin{equation}
+    z_{\text{hover}}=1.0 \ \text{m}.
+\end{equation}
+
+During this phase, the horizontal velocity commands are zero:
+
+\begin{equation}
+    v_{x,i}=0, \quad v_{y,i}=0.
+\end{equation}
+
+The altitude command is:
+
+\begin{equation}
+    z_{\text{dist},i}=z_{\text{hover}}.
+\end{equation}
+
+The show starts only when all drones have reached a sufficient altitude. The transition condition is:
+
+\begin{equation}
+    z_i(t)>0.9z_{\text{hover}}, \quad \forall i\in\{1,2,3\}.
+\end{equation}
+
+This condition ensures that the group starts the aerial maneuvers only after all agents are safely in flight.
+
+\section{Circular Motion Phase}
+
+After takeoff, the drones perform a circular motion around the origin. This phase is a first example of coordinated reference tracking. Each drone follows a point moving on a circle of radius:
+
+\begin{equation}
+    R=1.0 \ \text{m}.
+\end{equation}
+
+The initial phase angle of each drone is computed from its initial position:
+
+\begin{equation}
+    \phi_i=\operatorname{atan2}(y_i(0),x_i(0)).
+\end{equation}
+
+For the three drones, these angles are:
+
+\begin{equation}
+    \phi_1=0, \quad \phi_2=\frac{2\pi}{3}, \quad \phi_3=-\frac{2\pi}{3}.
+\end{equation}
+
+The rotation lasts:
+
+\begin{equation}
+    T_c=12 \ \text{s}.
+\end{equation}
+
+The angular position of drone $i$ is:
+
+\begin{equation}
+    \theta_i(t)=\phi_i+\frac{2\pi}{T_c}t.
+\end{equation}
+
+The desired trajectory is therefore:
+
+\begin{equation}
+    p_i^{\star}(t)=
+    \begin{bmatrix}
+    R\cos\theta_i(t) \\
+    R\sin\theta_i(t) \\
+    z_{\text{hover}}
+    \end{bmatrix}.
+\end{equation}
+
+The offsets between the angles maintain the separation between drones. This illustrates the idea of assigning different references to different agents while preserving a coherent global motion.
+
+\section{Partial Consensus Phase}
+
+The next phase introduces a consensus-inspired behavior. In the course, consensus is usually described by a graph in which each agent updates its state according to the state of its neighbors. Here, the interaction graph is a directed cycle:
+
+\begin{equation}
+    1\rightarrow2, \quad 2\rightarrow3, \quad 3\rightarrow1.
+\end{equation}
+
+This means that drone 1 follows drone 2, drone 2 follows drone 3, and drone 3 follows drone 1. We define:
+
+\begin{equation}
+    j(1)=2, \quad j(2)=3, \quad j(3)=1.
+\end{equation}
+
+The target of drone $i$ is the current horizontal position of its neighbor, with the altitude fixed at $z_{\text{hover}}$:
+
+\begin{equation}
+    p_i^{\star}(t)=
+    \begin{bmatrix}
+    x_{j(i)}(t) \\
+    y_{j(i)}(t) \\
+    z_{\text{hover}}
+    \end{bmatrix}.
+\end{equation}
+
+The tracking error then contains the term:
+
+\begin{equation}
+    p_{j(i)}(t)-p_i(t),
+\end{equation}
+
+which is the same type of relative state difference used in consensus theory. As each drone moves toward the next one, the group contracts. The phase ends when the maximum distance between two drones is sufficiently small:
+
+\begin{equation}
+    d_{\max}(t)=\max_{a,b\in\{1,2,3\}}\|p_a(t)-p_b(t)\|<0.85 \ \text{m},
+\end{equation}
+
+or when the maximum duration of $10$ s is reached.
+
+This phase is directly connected to the consensus part of the course: the agents do not need a single centralized target; instead, the collective behavior emerges from local relative interactions.
+
+\section{Inverse Consensus Phase}
+
+The inverse consensus phase uses the same directed cycle, but the direction of the motion is reversed. Instead of moving toward its neighbor, each drone moves away from it. For drone $i$, the vector pointing away from its neighbor is:
+
+\begin{equation}
+    \Delta_i(t)=p_i(t)-p_{j(i)}(t).
+\end{equation}
+
+The desired target is placed in that direction:
+
+\begin{equation}
+    p_i^{\star}(t)=
+    \begin{bmatrix}
+    x_i(t)+\Delta_{x,i}(t) \\
+    y_i(t)+\Delta_{y,i}(t) \\
+    z_{\text{hover}}
+    \end{bmatrix}.
+\end{equation}
+
+This produces an expansion of the group. The phase ends when the minimum distance between two drones is large enough:
+
+\begin{equation}
+    d_{\min}(t)=\min_{a\neq b}\|p_a(t)-p_b(t)\|>1.35 \ \text{m},
+\end{equation}
+
+or when the maximum duration of $6$ s is reached.
+
+This phase shows that changing the sign of a relative interaction can completely change the global behavior of the multi-agent system: attraction produces contraction, while repulsion produces expansion.
+
+\section{Triangle Formation Phase}
+
+After the consensus-inspired phases, the drones form a triangle. This phase corresponds to formation control. Instead of making all agents converge to the same point, the goal is to make them preserve relative positions.
+
+The desired relative offsets are the initial triangular positions in the horizontal plane:
+
+\begin{equation}
+    r_1=
+    \begin{bmatrix}
+    1 \\
+    0
+    \end{bmatrix}, \quad
+    r_2=
+    \begin{bmatrix}
+    -\frac{1}{2} \\
+    \frac{\sqrt{3}}{2}
+    \end{bmatrix}, \quad
+    r_3=
+    \begin{bmatrix}
+    -\frac{1}{2} \\
+    -\frac{\sqrt{3}}{2}
+    \end{bmatrix}.
+\end{equation}
+
+These vectors satisfy:
+
+\begin{equation}
+    r_1+r_2+r_3=0,
+\end{equation}
+
+so they define a formation centered at the barycenter. In this phase, the barycenter follows a circular trajectory:
+
+\begin{equation}
+    c_b(t)=
+    \begin{bmatrix}
+    R_b\cos(\omega_b t) \\
+    R_b\sin(\omega_b t)
+    \end{bmatrix},
+\end{equation}
+
+with:
+
+\begin{equation}
+    R_b=0.55, \quad \omega_b=\frac{2\pi}{14}.
+\end{equation}
+
+The desired position of drone $i$ is:
+
+\begin{equation}
+    p_i^{\star}(t)=
+    \begin{bmatrix}
+    c_{b,x}(t)+r_{x,i} \\
+    c_{b,y}(t)+r_{y,i} \\
+    z_{\text{hover}}
+    \end{bmatrix}.
+\end{equation}
+
+This equation separates the global motion of the formation, represented by $c_b(t)$, from the internal geometry, represented by $r_i$. This is exactly the principle of formation control studied in the course.
+
+\section{Rotating Triangle Formation}
+
+The next phase keeps the same triangular formation, but rotates it. The barycenter continues to move on a circle, and the relative offsets are rotated by a planar rotation matrix:
+
+\begin{equation}
+    R(\theta)=
+    \begin{bmatrix}
+    \cos\theta & -\sin\theta \\
+    \sin\theta & \cos\theta
+    \end{bmatrix}.
+\end{equation}
+
+The rotation angle is:
+
+\begin{equation}
+    \theta(t)=\frac{2\pi}{14}t.
+\end{equation}
+
+The desired target becomes:
+
+\begin{equation}
+    p_i^{\star}(t)=
+    \begin{bmatrix}
+    c_{b,x}(t) \\
+    c_{b,y}(t)
+    \end{bmatrix}
+    +R(\theta(t))r_i,
+\end{equation}
+
+with the altitude kept equal to $z_{\text{hover}}$. More explicitly:
+
+\begin{equation}
+    p_i^{\star}(t)=
+    \begin{bmatrix}
+    c_{b,x}(t)+\tilde{r}_{x,i}(t) \\
+    c_{b,y}(t)+\tilde{r}_{y,i}(t) \\
+    z_{\text{hover}}
+    \end{bmatrix},
+\end{equation}
+
+where:
+
+\begin{equation}
+    \tilde{r}_i(t)=R(\theta(t))r_i.
+\end{equation}
+
+The rotation matrix preserves distances:
+
+\begin{equation}
+    \|R(\theta)r_i-R(\theta)r_j\|=\|r_i-r_j\|.
+\end{equation}
+
+Therefore, the triangle rotates as a rigid formation. This phase illustrates an important formation-control idea: the shape can move and rotate while its internal distances remain unchanged.
+
+\section{Return and Landing Phases}
+
+After the rotating formation, the drones return to their initial horizontal positions at hovering altitude:
+
+\begin{equation}
+    p_i^{\star}=
+    \begin{bmatrix}
+    x_i(0) \\
+    y_i(0) \\
+    z_{\text{hover}}
+    \end{bmatrix}.
+\end{equation}
+
+The return phase ends when all drones are close to their targets:
+
+\begin{equation}
+    \|p_i(t)-p_i^{\star}\|<0.12 \ \text{m}, \quad \forall i\in\{1,2,3\},
+\end{equation}
+
+or when the maximum duration of $12$ s is reached.
+
+Finally, the landing phase is activated. The horizontal commands are set to zero:
+
+\begin{equation}
+    v_{x,i}=0, \quad v_{y,i}=0,
+\end{equation}
+
+and the altitude command is set to:
+
+\begin{equation}
+    z_{\text{dist},i}=0.
+\end{equation}
+
+A drone is considered landed when:
+
+\begin{equation}
+    z_i(t)<0.15 \ \text{m}.
+\end{equation}
+
+
+\section{Artificial Potential Field Safety Layer}
+
+In the five-drone scenario, an additional safety layer is used to reduce the risk of inter-drone collisions. This layer is based on the Artificial Potential Field (APF) method introduced by Khatib for real-time obstacle avoidance \cite{khatib1986apf}. In our case, the other drones are treated as moving obstacles: if two drones become too close, a repulsive correction is added to the navigation command.
+
+For drone $i$, let $p_i(t)$ be its position and $p_j(t)$ the position of another drone. The relative vector and the distance between them are:
+
+\begin{equation}
+    q_{ij}(t)=p_i(t)-p_j(t),
+\end{equation}
+
+\begin{equation}
+    d_{ij}(t)=\|q_{ij}(t)\|.
+\end{equation}
+
+The repulsive action is activated only when the distance is smaller than a safety distance $d_{\text{safe}}$. If $d_{ij}(t)\geq d_{\text{safe}}$, no repulsive correction is applied. If $0<d_{ij}(t)<d_{\text{safe}}$, the repulsive velocity contribution generated by drone $j$ on drone $i$ is:
+
+\begin{equation}
+    v_{ij}^{\text{rep}}(t)=K_{\text{rep}}\left(\frac{1}{d_{ij}(t)}-\frac{1}{d_{\text{safe}}}\right)\frac{q_{ij}(t)}{d_{ij}(t)}.
+\end{equation}
+
+The direction $q_{ij}(t)/d_{ij}(t)$ points from drone $j$ to drone $i$, so the correction pushes drone $i$ away from drone $j$. The total repulsive correction applied to drone $i$ is obtained by summing the contributions of all other drones:
+
+\begin{equation}
+    v_i^{\text{rep}}(t)=\sum_{j\neq i} v_{ij}^{\text{rep}}(t).
+\end{equation}
+
+In the implementation, the navigation command is also attenuated when drones enter the safety zone. If $d_{\min,i}$ is the minimum distance from drone $i$ to any other drone, the attenuation factor is:
+
+\begin{equation}
+    \alpha_i=\max\left(0,\min\left(1,\frac{d_{\min,i}-d_{\min}}{d_{\text{safe}}-d_{\min}}\right)\right),
+\end{equation}
+
+where $d_{\min}$ is the hard minimum distance. The final command is then written as:
+
+\begin{equation}
+    v_i(t)=\alpha_i v_i^{\text{nav}}(t)+v_i^{\text{rep}}(t),
+\end{equation}
+
+where $v_i^{\text{nav}}(t)$ is the nominal command generated by the formation or trajectory controller. When the drone is far from the others, $\alpha_i\approx 1$ and the nominal navigation dominates. When the drone becomes too close to another drone, $\alpha_i$ decreases and the repulsive term becomes dominant. This mechanism is important in the five-drone show because the drones perform several formation changes, and the APF layer helps preserve a safe distance during these transitions.
+
+\section{Connection with the Course}
+
+The three-drone show summarizes several concepts studied in the course. First, the drones are modeled as agents of a multi-agent system, each with its own state and control input. Second, the partial consensus and inverse consensus phases use a directed communication graph and relative position errors, which are central ideas in consensus theory. Third, the triangle and rotating triangle phases apply formation control: the group is not required to converge to a single point, but to maintain a desired geometric structure. Finally, the PD controller shows how theoretical reference trajectories are converted into practical commands through feedback.
+
+The complete mission can therefore be interpreted as a sequence of multi-agent control problems: reference tracking for takeoff and circular motion, graph-based relative interaction for consensus, displacement-based formation control for the triangle, rigid-body rotation for the visual effect, and safe return and landing for mission completion.

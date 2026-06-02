@@ -97,6 +97,15 @@ def tb3B_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
 
     #  --- TO BE MODIFIED --- 
+    if robotNo == 1:    
+        goal = [2,-2]
+    if robotNo == 2:    
+        goal = [1,-2]
+    if robotNo == 3:
+        time.sleep(2)
+        goal = [0,-2]  
+    vx = 0.2 * (-robotPose[0] + goal[0])
+    vy = 0.2 * (-robotPose[1] + goal[1])
     # -----------------------
 
     return vx,vy
@@ -119,6 +128,9 @@ def tb3W_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
 
     #  --- TO BE MODIFIED --- 
+    goal = [-1,1]
+    vx = 0.2 * (-robotPose[0] + goal[0])
+    vy = 0.2 * (-robotPose[1] + goal[1])
     # -----------------------
 
     return vx,vy
@@ -141,6 +153,25 @@ def rmtt_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_
     led = (0,0,0) # led color (r,g,b) in range [0,255]
     
     #  --- TO BE MODIFIED ---
+    vx = 0.0
+    vy = 0.0
+    vz = 0.0
+    trigger_land = False # trigger to land the drone (True/False)
+    goal = [-2,1,1]
+    ex = goal[0] - robotPose[0]
+    ey = goal[1] - robotPose[1]
+    ez = goal[2] - robotPose[2]
+    if abs(ex) > 0.2 or abs(ey) > 0.2 or abs(ez) > 0.1:
+        vx = 0.5 * ex
+        vy = 0.5 * ey
+        vz = 0.5 * ez
+        led = (255,0,0)
+    else:
+        vx = 0
+        vy = 0
+        vz = 0
+        led = (0,255,0)
+        trigger_land = True
     # -----------------------
 
     return vx,vy,vz,trigger_land,led
@@ -161,6 +192,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
     nbOBSTACLE = len(obstacle_pose[0]) # number of total obstacle positions in the environment
 
     #  --- TO BE MODIFIED ---
+
     # ============================================================
     # Default values of the function's outputs:
     # ============================================================
@@ -276,25 +308,6 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         if value < -limit:
             return -limit
         return value
-
-    def blend_color(color_a, color_b, amount):
-        amount = max(0.0, min(1.0, amount))
-        return tuple(
-            int(color_a[channel] + amount * (color_b[channel] - color_a[channel]))
-            for channel in range(3)
-        )
-
-    def pulse_color(color_a, color_b, speed, phase_shift=0.0):
-        amount = 0.5 + 0.5 * math.sin(speed * clock + phase_shift)
-        return blend_color(color_a, color_b, amount)
-
-    def rainbow_color(speed, phase_shift=0.0):
-        angle = speed * clock + phase_shift
-        return (
-            int(127.5 + 127.5 * math.sin(angle)),
-            int(127.5 + 127.5 * math.sin(angle + 2.0 * math.pi / 3.0)),
-            int(127.5 + 127.5 * math.sin(angle + 4.0 * math.pi / 3.0))
-        )
 
     def pd_position_control(target_position):
         """
@@ -432,7 +445,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
     if phase == 0:
         z_dist = z_hover
-        led = pulse_color((0, 0, 80), (80, 180, 255), 2.2, i * 0.7)
+        led = (0, 0, 255)
 
         if cf2_control_fn.mission_state[robotNo] == 0:
             trigger_takeoff = True
@@ -460,7 +473,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
 
         target = np.array([target_xy[0], target_xy[1], z_hover])
         vx, vy, z_dist = pd_position_control(target)
-        led = rainbow_color(1.1, i * 2.0 * math.pi / 3.0)
+        led = (255, 120, 0)
 
     # ========================================================
     # Phase 2: partial consensus
@@ -477,7 +490,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         ])
 
         vx, vy, z_dist = pd_position_control(target)
-        led = pulse_color((120, 0, 180), (255, 90, 255), 3.0, i)
+        led = (255, 0, 255)
 
     # ========================================================
     # Phase 3: inverse partial consensus
@@ -497,7 +510,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         ])
 
         vx, vy, z_dist = pd_position_control(target)
-        led = pulse_color((255, 90, 0), (255, 255, 80), 2.6, i * 0.8)
+        led = (255, 255, 0)
 
     # ========================================================
     # Phase 4: triangle formation without rotation
@@ -521,7 +534,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         target = np.array([target_xy[0], target_xy[1], z_hover])
 
         vx, vy, z_dist = pd_position_control(target)
-        led = pulse_color((0, 120, 160), (80, 255, 255), 1.8, i * 1.3)
+        led = (0, 255, 255)
 
     # ========================================================
     # Phase 5: triangle formation with rotation
@@ -555,7 +568,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         target = np.array([target_xy[0], target_xy[1], z_hover])
 
         vx, vy, z_dist = pd_position_control(target)
-        led = rainbow_color(1.6, phase_time + i * 2.0 * math.pi / 3.0)
+        led = (0, 180, 255)
 
     # ========================================================
     # Phase 6: return to initial positions
@@ -569,7 +582,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         ])
 
         vx, vy, z_dist = pd_position_control(target)
-        led = pulse_color((40, 180, 60), (200, 255, 200), 2.4, i * 0.9)
+        led = (120, 255, 120)
 
     # ========================================================
     # Phase 7: landing
@@ -580,7 +593,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         vy = 0.0
         z_dist = 0.0
         trigger_land = True
-        led = pulse_color((0, 90, 0), (120, 255, 80), 3.4, i * 0.5)
+        led = (0, 255, 0)
 
         cf2_control_fn.mission_state[robotNo] = 2
 
@@ -597,7 +610,7 @@ def cf2_control_fn(robotNo, robotPose, tb3B_poses, tb3W_poses, rmtt_poses, cf2_p
         z_dist = 0.0
         trigger_takeoff = False
         trigger_land = False
-        led = (0, 120, 0)
+        led = (0, 255, 0)
         cf2_control_fn.mission_state[robotNo] = 3
 
     # -----------------------
